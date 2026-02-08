@@ -222,3 +222,40 @@ class Meal(models.Model):
         #     models.Index(fields=['meal_type']),
         #     models.Index(fields=['total_calories']),
         # ]
+
+
+class DailyNutrition(models.Model):
+    """Сводная информация по питанию за день"""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='daily_nutrition',
+        verbose_name="Пользователь"
+    )
+    date = models.DateField(
+        verbose_name="Дата",
+        auto_now_add=True
+    )
+
+    meals = models.ManyToManyField(
+        Meal,
+        related_name='daily_nutritions',
+        verbose_name='Прием пищи'
+    )
+
+    total_calories = models.PositiveIntegerField(
+        verbose_name="Общее количество калорий",
+        default=0
+    )
+    total_protein = models.FloatField(
+        verbose_name="Общее количество белков",
+        default=0.0
+    )
+    total_fat = models.FloatField(
+        verbose_name="Общее количество жиров",
+        default=0.0
+    )
+    total_carbohydrates = models.FloatField(
+        verbose_name="Общее количество углеводов",
+        default=0.0
+    )

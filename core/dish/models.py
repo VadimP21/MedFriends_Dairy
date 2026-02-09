@@ -4,18 +4,18 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
-class Category(models.Model):
-    """Модель категории продуктов"""
-    name = models.CharField(max_length=100, unique=True, verbose_name="Название категории")
-    slug = models.SlugField(max_length=100, unique=True, verbose_name="URL-идентификатор")
-
-    class Meta:
-        verbose_name = "Категория"
-        verbose_name_plural = "Категории"
-        ordering = ['name']
-
-    def __str__(self):
-        return self.name
+# class Category(models.Model):
+#     """Модель категории продуктов"""
+#     name = models.CharField(max_length=100, unique=True, verbose_name="Название категории")
+#     slug = models.SlugField(max_length=100, unique=True, verbose_name="URL-идентификатор")
+#
+#     class Meta:
+#         verbose_name = "Категория"
+#         verbose_name_plural = "Категории"
+#         ordering = ['name']
+#
+#     def __str__(self):
+#         return self.name
 
 
 class Product(models.Model):
@@ -62,14 +62,6 @@ class Product(models.Model):
         validators=[MinValueValidator(0.0)]
     )
 
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='products',
-        verbose_name="Категория"
-    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name="Дата создания"
@@ -78,6 +70,15 @@ class Product(models.Model):
         auto_now=True,
         verbose_name="Дата обновления"
     )
+
+    # category = models.ForeignKey(
+    #     Category,
+    #     on_delete=models.SET_NULL,
+    #     null=True,
+    #     blank=True,
+    #     related_name='products',
+    #     verbose_name="Категория"
+    # )
 
     class Meta:
         verbose_name = "Продукт"
@@ -90,7 +91,17 @@ class Product(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.name} ({self.category})"
+        return f"{self.name}"
+
+    def check_CPFC_correctionally(self) -> bool:
+        estimated_calories = (self.protein * 4) + (self.carbohydrates * 4) + (self.fat * 9)
+
+        if abs(self.calories - estimated_calories) > self.calories * 0.3:  # Допуск 30%
+
+            # Можно добавить warning, но не блокировать сохранение
+            return True
+        return False
+
 
 class MealType(models.Model):
     """Типы приемов пищи"""
@@ -130,6 +141,7 @@ class MealType(models.Model):
 
     def __str__(self):
         return self.get_name_display()
+
 
 class Dish(models.Model):
     """Блюдо из определенного веса продукта"""

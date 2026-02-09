@@ -3,24 +3,37 @@ like core in Base project
 """
 import json
 
-from django.http import HttpResponse, HttpRequest, JsonResponse
+from django.http import HttpRequest, JsonResponse
 
-from core.dish.models import Product
 from core.dish.service import ProductService
 from core.dish.shcemas.product_schemas import ProductCreate, ProductResponse
+from core.dish.utils import validate_json_request
 
 
+@validate_json_request
 def create_product(
         request: HttpRequest,
-        product_service: ProductService,
 ):
-    body_data = json.loads(request.body.decode('utf-8'))
-    validated_product = ProductCreate(**body_data)
-    # validated_product = ProductCreate(request.body.decode())
+    try:
+        validated_data = ProductCreate.model_validate(json.loads(request.body))
 
+        product = ProductService.create_product(payload=validated_data)
 
-    response_data = product_service.create_product(payload=validated_product)
+        response_dto = ProductResponse.model_validate(product)
 
-    response_dto = ProductResponse.form_orm(response_data)
-
-    return JsonResponse(response_dto.dict, status=201)
+        return JsonResponse(
+            {
+                'success': True,
+                'data': response_dto.model_dump(),
+                'message': 'Product created successfully'
+            },
+            status=201
+        )
+    except Exception as e:
+        return JsonResponse(
+            {
+                'success': False,
+                'error': str(e)
+            },
+            status=400
+        )

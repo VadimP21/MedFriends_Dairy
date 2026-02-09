@@ -16,8 +16,11 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+
+from core.dish.views import create_product
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/", include("core.dish.urls")),
 ]

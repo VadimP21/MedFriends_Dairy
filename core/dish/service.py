@@ -7,6 +7,6 @@ class ProductService:
     def create_product(payload: ProductCreate) -> Product:
         product_data = payload.model_dump()
 
-        product = Product(**product_data)
+        product = Product.objects.create(**product_data)
 
         return product

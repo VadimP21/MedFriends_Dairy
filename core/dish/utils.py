@@ -8,24 +8,24 @@ def validate_json_request(func):
 
     @wraps(func)
     def wrapper(request: HttpRequest, *args, **kwargs):
-        if request.method != 'POST':
-            return JsonResponse(
-                {'error': 'Method not allowed'},
-                status=405
-            )
+        if request.method != "POST":
+            return JsonResponse({"error": "Method not allowed"}, status=405)
 
         if not request.body:
-            return JsonResponse(
-                {'error': 'Request body is empty'},
-                status=400
-            )
+            return JsonResponse({"error": "Request body is empty"}, status=400)
 
         try:
-            data = json.loads(request.body.decode('utf-8'))
-        except json.JSONDecodeError:
+            body_unicode = request.body.decode("utf-8")
+            print(f"Body: {request.body.decode()}")
+            data = json.loads(request.body.decode().strip())
+        except json.JSONDecodeError as e:
             return JsonResponse(
-                {'error': 'Invalid JSON format'},
-                status=400
+                {
+                    "error": "Invalid JSON format",
+                    "details": str(e),  # Это покажет, где именно ошибка в JSON
+                    "received_body": body_unicode,  # Временно для отладки
+                },
+                status=400,
             )
 
         request.json_data = data

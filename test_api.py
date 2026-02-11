@@ -16,15 +16,15 @@ class TestDishAPI:
 
     @pytest.fixture
     def valid_data(self):
-        return ({
+        return {
             "name": "Хлеб цельнозерновой тост",
             "weight": 60,
             "calories": 150,
             "protein": 5.00,
             "fat": 2.00,
             "carbohydrates": 25.00,
-            "score": 0.9
-        })
+            "score": 0.9,
+        }
 
     @pytest.fixture
     def invalid_data(self):
@@ -44,7 +44,7 @@ class TestDishAPI:
 
     def test_create_dish_success(self, client):
         """Тест успешного POST запроса с валидным JSON"""
-        url = reverse('create_dish')  # Имя вашего path в urls.py
+        url = reverse("create_dish")  # Имя вашего path в urls.py
         payload = {
             "name": "Хлеб цельнозерновой тост",
             "weight": 60,
@@ -52,13 +52,11 @@ class TestDishAPI:
             "protein": 5.00,
             "fat": 2.00,
             "carbohydrates": 25.00,
-            "score": 0.9
+            "score": 0.9,
         }
 
         response = client.post(
-            url,
-            data=json.dumps(payload),
-            content_type="application/json"
+            url, data=json.dumps(payload), content_type="application/json"
         )
 
         assert response.status_code == 200
@@ -66,21 +64,17 @@ class TestDishAPI:
 
     def test_create_dish_invalid_json(self, client):
         """Тест на битый JSON (проверка обработки декоратором)"""
-        url = reverse('create_dish')
+        url = reverse("create_dish")
         bad_payload = '{"name": "Broken", "weight": '  # Недописанный JSON
 
-        response = client.post(
-            url,
-            data=bad_payload,
-            content_type="application/json"
-        )
+        response = client.post(url, data=bad_payload, content_type="application/json")
 
         assert response.status_code == 400
         assert "Invalid JSON format" in response.json()["error"]
 
     def test_create_dish_wrong_method(self, client):
         """Тест на отправку GET вместо POST"""
-        url = reverse('create_dish')
+        url = reverse("create_dish")
 
         response = client.get(url)
 
@@ -89,13 +83,9 @@ class TestDishAPI:
 
     def test_create_dish_empty_body(self, client):
         """Тест на пустой запрос"""
-        url = reverse('create_dish')
+        url = reverse("create_dish")
 
-        response = client.post(
-            url,
-            data="",
-            content_type="application/json"
-        )
+        response = client.post(url, data="", content_type="application/json")
 
         assert response.status_code == 400
         assert response.json()["error"] == "Request body is empty"

@@ -1,22 +1,14 @@
 from django.http import JsonResponse
 from django.urls import path
-from .views import (
-    create_product,
-    get_product,
-    list_products,
-    update_product,
-    delete_product,
-    calculate_nutrition,
-    get_product_statistics,
-    api_root,
-)
+from .views import hard_create_dish, create_dish
 
 urlpatterns = [
     # ========== API ROOT ==========
     path("", api_root, name="api_root"),
     # ========== PRODUCT CRUD ==========
-    path("products/", list_products, name="product_list"),
-    path("products/create/", create_product, name="product_create"),
+    path("dish/", list_dishes, name="dish_list"),
+    path("dish/hard_create/", hard_create_dish, name="dish_create"),
+    path("dish/create/", create_dish, name="dish_create"),
     path("products/<uuid:product_id>/", get_product, name="product_detail"),
     path("products/<uuid:product_id>/update/", update_product, name="product_update"),
     path("products/<uuid:product_id>/delete/", delete_product, name="product_delete"),

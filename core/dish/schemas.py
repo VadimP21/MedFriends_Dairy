@@ -35,7 +35,7 @@ class DishCreate(DishBase):
     pass
 
 
-class DishRead(DishBase):
+class DishResponse(DishBase):
     """Схема для отображения блюда"""
 
     id: int
@@ -61,7 +61,7 @@ class MealRead(MealBase):
     id: int
     user_id: int
     created_at: datetime
-    components: List[DishRead] = []
+    components: List[DishResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 

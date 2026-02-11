@@ -4,7 +4,7 @@ from django.http import HttpRequest, JsonResponse
 
 
 def validate_json_request(func):
-    """Декоратор для валидации JSON запросов"""
+    """Декоратор для валидации JSON запросов, отдает dict"""
 
     @wraps(func)
     def wrapper(request: HttpRequest, *args, **kwargs):
@@ -22,7 +22,7 @@ def validate_json_request(func):
             return JsonResponse(
                 {
                     "error": "Invalid JSON format",
-                    "details": str(e),  # Это покажет, где именно ошибка в JSON
+                    "details": str(e),
                     "received_body": body_unicode,  # Временно для отладки
                 },
                 status=400,

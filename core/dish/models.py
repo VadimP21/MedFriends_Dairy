@@ -1,225 +1,133 @@
-import uuid
-from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
-
-
-class Product(models.Model):
-    """Модель единицы продукта с разделенным КБЖУ"""
-
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        verbose_name="Идентификатор",
-    )
-    name = models.CharField(max_length=200, verbose_name="Название продукта")
-    average_portion = models.PositiveIntegerField(
-        verbose_name="Средний размер порции (в граммах)",
-        help_text="Средняя рекомендуемая порция в граммах",
-        default=100,
-    )
-    description = models.TextField(
-        verbose_name="Описание продукта", blank=True, null=True
-    )
-
-    calories = models.PositiveIntegerField(
-        verbose_name="Калории (ккал)",
-        help_text="Количество калорий в 100 граммах продукта",
-        validators=[MinValueValidator(0)],
-    )
-    protein = models.FloatField(
-        verbose_name="Белки (г)",
-        help_text="Количество белков в 100 граммах продукта",
-        validators=[MinValueValidator(0.0)],
-    )
-    fat = models.FloatField(
-        verbose_name="Жиры (г)",
-        help_text="Количество жиров в 100 граммах продукта",
-        validators=[MinValueValidator(0.0)],
-    )
-    carbohydrates = models.FloatField(
-        verbose_name="Углеводы (г)",
-        help_text="Количество углеводов в 100 граммах продукта",
-        validators=[MinValueValidator(0.0)],
-    )
-
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="Дата обновления")
-
-    # category = models.ForeignKey(
-    #     Category,
-    #     on_delete=models.SET_NULL,
-    #     null=True,
-    #     blank=True,
-    #     related_name='products',
-    #     verbose_name="Категория"
-    # )
-
-    class Meta:
-        verbose_name = "Продукт"
-        verbose_name_plural = "Продукты"
-        ordering = ["name"]
-        indexes = [
-            models.Index(fields=["name"]),
-            models.Index(fields=["calories"]),
-        ]
-
-    def __str__(self):
-        return f"{self.name}"
-
-    def check_CPFC_correctionally(self) -> bool:
-        estimated_calories = (
-            (self.protein * 4) + (self.carbohydrates * 4) + (self.fat * 9)
-        )
-
-        if abs(self.calories - estimated_calories) > self.calories * 0.3:  # Допуск 30%
-
-            # Можно добавить warning, но не блокировать сохранение
-            return True
-        return False
-
-
-class MealType(models.Model):
-    """Типы приемов пищи"""
-
-    BREAKFAST = "breakfast"
-    LUNCH = "lunch"
-    DINNER = "dinner"
-    SNACK = "snack"
-    OTHER = "other"
-
-    MEAL_TYPE_CHOICES = [
-        (BREAKFAST, "Завтрак"),
-        (LUNCH, "Обед"),
-        (DINNER, "Ужин"),
-        (SNACK, "Перекус"),
-        (OTHER, "Другое"),
-    ]
-
-    name = models.CharField(
-        max_length=20,
-        choices=MEAL_TYPE_CHOICES,
-        unique=True,
-        verbose_name="Тип приема пищи",
-    )
-    default_name = models.CharField(
-        max_length=100, verbose_name="Название по умолчанию"
-    )
-    order = models.PositiveIntegerField(default=0, verbose_name="Порядок сортировки")
-
-    class Meta:
-        verbose_name = "Тип приема пищи"
-        verbose_name_plural = "Типы приемов пищи"
-        ordering = ["order", "name"]
-
-    def __str__(self):
-        return self.get_name_display()
+from django.db import models
 
 
 class Dish(models.Model):
-    """Блюдо из определенного веса продукта"""
+    """Модель конкретной порции продукта в приеме пищи"""
 
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="dishes", verbose_name="Продукт"
-    )
+    name = models.CharField(max_length=200, verbose_name="Название продукта")
+
     weight = models.PositiveIntegerField(
         verbose_name="Вес (в граммах)",
         validators=[MinValueValidator(1)],
         help_text="Вес продукта в граммах",
     )
 
+    calories = models.PositiveIntegerField(
+        verbose_name="Калории (ккал)",
+        help_text="Количество калорий в указанном весе",
+        validators=[MinValueValidator(0)],
+    )
+    protein = models.FloatField(
+        verbose_name="Белки (г)",
+        help_text="Количество белков в указанном весе",
+        validators=[MinValueValidator(0.0)],
+    )
+    fat = models.FloatField(
+        verbose_name="Жиры (г)",
+        help_text="Количество жиров в указанном весе",
+        validators=[MinValueValidator(0.0)],
+    )
+    carbohydrates = models.FloatField(
+        verbose_name="Углеводы (г)",
+        help_text="Количество углеводов в указанном весе",
+        validators=[MinValueValidator(0.0)],
+    )
+
+    score = models.FloatField(
+        verbose_name="Индекс «здорового питания»",
+        help_text="Оценка того, насколько продукт полезен для организма",
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    )
+    description = models.TextField(
+        verbose_name="Описание продукта", blank=True, null=True
+    )
+
+    meal = models.ForeignKey(
+        "Meal",
+        on_delete=models.CASCADE,
+        related_name="components",
+        verbose_name="Прием пищи",
+        null=True,
+        blank=True,
+    )
+
     class Meta:
-        verbose_name = "Блюдо"
-        verbose_name_plural = "Блюда"
-        ordering = ["-id"]
+        verbose_name = "Продукт"
+        verbose_name_plural = "Продукты"
 
     def __str__(self):
-        return f"{self.product.name} - {self.weight}г"
+        return f"{self.name} (weight: {self.weight}, score: {self.score})"
 
 
 class Meal(models.Model):
     """Прием пищи из нескольких блюд"""
 
-    id = models.AutoField(primary_key=True, verbose_name="ID")
-    meal_type = models.ForeignKey(
-        MealType,
-        default=MealType.OTHER,
-        on_delete=models.SET_DEFAULT,
-        verbose_name="Тип приема пищи",
-    )
-    custom_meal_type = models.CharField(
-        max_length=100,
-        blank=True,
-        null=True,
-        verbose_name="Пользовательский тип",
-        help_text="Если не выбрано из списка. Приоритет выше, чем автоопределение по времени.",
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True, verbose_name="Дата и время приема пищи"
-    )
-    dishes = models.ManyToManyField(
-        Dish, related_name="meals", verbose_name="Блюда", blank=True
-    )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name="meals",
         verbose_name="Пользователь",
     )
-
-    total_calories = models.PositiveIntegerField(
-        verbose_name="Общие калории",
-        default=0,
-        help_text="Суммарная калорийность приема пищи",
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата и время приема пищи",
+        help_text="Заполняется автоматически на основе локального времени "
+        "на устройстве пользователя.	Возможно изменение вручную",
     )
-    total_protein = models.FloatField(
-        verbose_name="Общие белки", default=0.0, help_text="Суммарные белки приема пищи"
-    )
-    total_fat = models.FloatField(
-        verbose_name="Общие жиры", default=0.0, help_text="Суммарные жиры приема пищи"
-    )
-    total_carbohydrates = models.FloatField(
-        verbose_name="Общие углеводы",
-        default=0.0,
-        help_text="Суммарные углеводы приема пищи",
+    name = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Тип приема пищи",
+        help_text="Завтрак, Обед, Ужин, Перекус/другое",
     )
 
-    notes = models.TextField(verbose_name="Заметки", blank=True, null=True)
+    portion_size = models.TextField(
+        verbose_name="Размер порции",
+        help_text="Текстовое описание размера порции ('Стандартная')",
+    )
+
+    description = models.CharField(
+        max_length=200, verbose_name="Описание продукта", blank=True, null=True
+    )
 
     class Meta:
         verbose_name = "Прием пищи"
         verbose_name_plural = "Приемы пищи"
-        # ordering = ['-created_at']
-        # indexes = [
-        #     models.Index(fields=['user', 'created_at']),
-        #     models.Index(fields=['meal_type']),
-        #     models.Index(fields=['total_calories']),
-        # ]
 
+    def __str__(self):
+        return f"{self.name} - {self.created_at.strftime('%d.%m.%Y %H:%M')}"
 
-class DailyNutrition(models.Model):
-    """Сводная информация по питанию за день"""
+    @property
+    def total_weight(self):
+        """Суммирует вес всех компонентов приема пищи"""
+        return sum(component.weight for component in self.components.all())
 
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="daily_nutrition",
-        verbose_name="Пользователь",
-    )
-    date = models.DateField(verbose_name="Дата", auto_now_add=True)
+    @property
+    def total_calories(self):
+        """Суммирует калории всех компонентов"""
+        return sum(component.calories for component in self.components.all())
 
-    meals = models.ManyToManyField(
-        Meal, related_name="daily_nutritions", verbose_name="Прием пищи"
-    )
+    @property
+    def total_protein(self):
+        """Суммирует белки всех компонентов"""
+        return sum(component.protein for component in self.components.all())
 
-    total_calories = models.PositiveIntegerField(
-        verbose_name="Общее количество калорий", default=0
-    )
-    total_protein = models.FloatField(
-        verbose_name="Общее количество белков", default=0.0
-    )
-    total_fat = models.FloatField(verbose_name="Общее количество жиров", default=0.0)
-    total_carbohydrates = models.FloatField(
-        verbose_name="Общее количество углеводов", default=0.0
-    )
+    @property
+    def total_fat(self):
+        """Суммирует жиры всех компонентов"""
+        return sum(component.fat for component in self.components.all())
+
+    @property
+    def total_carbohydrates(self):
+        """Суммирует углеводы всех компонентов"""
+        return sum(component.carbohydrates for component in self.components.all())
+
+    @property
+    def avg_score(self):
+        """Средний индекс здоровья для всего приема пищи"""
+        components = self.components.all()
+        if not components:
+            return 0
+        return sum(c.score for c in components) / components.count()

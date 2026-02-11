@@ -60,6 +60,12 @@ class Dish(models.Model):
     def __str__(self):
         return f"{self.name} (weight: {self.weight}, score: {self.score})"
 
+    def checking_correctness_of_calories(self) -> bool:
+        # Проверка корректности калорий (примерно 4 ккал на г белка/углеводов и 9 на г жира)
+        estimated_calories = (self.protein * 4) + (self.carbohydrates * 4) + (self.fat * 9)
+        if abs(self.calories - estimated_calories) > self.calories * 0.3:  # Допуск 30%
+            return True
+        return False
 
 class Meal(models.Model):
     """Прием пищи из нескольких блюд"""

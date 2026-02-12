@@ -1,29 +1,28 @@
 from django.http import JsonResponse
 from django.urls import path
-from .views import hard_create_dish, create_dish
+from .web.meal_views import food_diary_view, get_by_photo, get_by_voice
 
 urlpatterns = [
-    # ========== API ROOT ==========
-    path("", api_root, name="api_root"),
-    # ========== PRODUCT CRUD ==========
-    path("dish/", list_dishes, name="dish_list"),
-    path("dish/hard_create/", hard_create_dish, name="dish_create"),
-    path("dish/create/", create_dish, name="dish_create"),
-    path("products/<uuid:product_id>/", get_product, name="product_detail"),
-    path("products/<uuid:product_id>/update/", update_product, name="product_update"),
-    path("products/<uuid:product_id>/delete/", delete_product, name="product_delete"),
-    # ========== PRODUCT UTILITIES ==========
-    path(
-        "products/<uuid:product_id>/nutrition/",
-        calculate_nutrition,
-        name="product_nutrition",
-    ),
-    path("products/statistics/", get_product_statistics, name="product_statistics"),
-    # ========== API VERSIONING (опционально) ==========
-    path("v1/products/", list_products, name="product_list_v1"),
-    path("v1/products/create/", create_product, name="product_create_v1"),
-    # ========== HEALTH CHECK ==========
-    path(
-        "health/", lambda request: JsonResponse({"status": "ok"}), name="health_check"
-    ),
+    # ========== ROOT ROUTERS ==========
+    path("photo/", get_by_photo, name="get_by_photo"),
+    path("voice/", get_by_voice, name="get_by_voice"),
+    # path(
+    #     "/dataTime=<str:timestamp>",
+    #     search_meal_by_date,
+    #     name="search_meal_by_date",
+    # ),
+    path('', food_diary_view, name='food_diary'),
+
+    # ========== DISH ROUTERS ==========
+    # path(
+    #     "/?dataTime=<str:timestamp>",
+    #     search_dishes_by_date,
+    #     name="search_dishes_by_date",
+    # ),
+    # path("/", hard_create_dish, name="dish_create"),
+    # path("/", update_dish, name="update_dish"),
+    # path("/<int:dish_id>", read_dish, name="read_dish"),
+    # path("/<int:dish_id>", delete_dish, name="delete_dish"),
+    # ========== CUSTOM ROUTERS ==========
+    # path("dish/create/", create_dish, name="dish_create"),
 ]

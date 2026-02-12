@@ -11,10 +11,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from pydantic import TypeAdapter
 
-from core.dish.service.meal_service import MealService
-from core.dish.schemas.dish_schemas import DishCreate, DishResponse, DishUpdate
-from core.dish.schemas.meal_schemas import MealCreate, MealResponse
-from core.dish.utils import validate_json_request, validate_json_body
+from core.food_dairy.service.meal_service import MealService
+from core.food_dairy.schemas.dish_schemas import DishCreate, DishResponse, DishUpdate
+from core.food_dairy.schemas.meal_schemas import MealCreate, MealResponse
+from core.food_dairy.utils import validate_json_request, validate_json_body
 
 
 @validate_json_body

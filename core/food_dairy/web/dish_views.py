@@ -9,9 +9,9 @@ from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from pydantic import TypeAdapter
 
-from core.dish.schemas.dish_schemas import DishCreate, DishResponse, DishUpdate
-from core.dish.service.dish_service import DishService
-from core.dish.utils import validate_json_request
+from core.food_dairy.schemas.dish_schemas import DishCreate, DishResponse, DishUpdate
+from core.food_dairy.service.dish_service import DishService
+from core.food_dairy.utils import validate_json_request
 
 
 

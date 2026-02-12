@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from core.dish.schemas.meal_schemas import MealCreate
-from core.dish.tests.tests_meal.test_meal_fixtures import TestMealFixture
+from core.food_dairy.schemas.meal_schemas import MealCreate
+from core.food_dairy.tests.tests_meal.test_meal_fixtures import TestMealFixture
 
 
 class TestMeal(TestMealFixture):

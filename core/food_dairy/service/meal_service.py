@@ -1,8 +1,8 @@
 from datetime import date
 from typing import List
 
-from core.dish.models import Meal, Dish
-from core.dish.schemas.meal_schemas import MealCreate
+from core.food_dairy.models import Meal, Dish
+from core.food_dairy.schemas.meal_schemas import MealCreate
 
 
 class MealService:

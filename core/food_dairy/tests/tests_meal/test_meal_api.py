@@ -1,7 +1,7 @@
 import json
 from django.urls import reverse
 
-from core.dish.tests.tests_meal.test_meal_fixtures import TestMealFixture
+from core.food_dairy.tests.tests_meal.test_meal_fixtures import TestMealFixture
 
 
 class TestMealIntegration(TestMealFixture):

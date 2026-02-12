@@ -1,5 +1,5 @@
 from django.apps import AppConfig
 
 
-class DishConfig(AppConfig):
-    name = "core.dish"
+class FoodDairyConfig(AppConfig):
+    name = "core.food_dairy"

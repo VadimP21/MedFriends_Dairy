@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "core.dish.apps.DishConfig",
+    "core.food_dairy.apps.FoodDairyConfig",
 ]
 
 MIDDLEWARE = [

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List
 
-from pydantic import BaseModel, Field, ConfigDict, computed_field
+from pydantic import BaseModel, Field, ConfigDict, computed_field, field_validator
 
 from core.food_dairy.schemas.dish_schemas import DishResponse, DishCreate, DishBase
 
@@ -9,7 +9,7 @@ from core.food_dairy.schemas.dish_schemas import DishResponse, DishCreate, DishB
 class MealBase(BaseModel):
     """Базовая схема приема пищи"""
 
-    name: str = Field(..., max_length=100, description="Завтрак, Обед и т.д.")
+    name: str | None = Field(..., max_length=100, description="Завтрак, Обед и т.д.")
     created_at: datetime | None = None
     portion_size: str = Field(..., description="Текстовое описание размера порции")
     description: str | None = Field(None, max_length=200)
@@ -18,7 +18,8 @@ class MealBase(BaseModel):
 
 class MealCreate(MealBase):
     """Схема для создания приема пищи"""
-    name: str | None = Field(..., max_length=100, description="Завтрак, Обед и т.д.")
+
+    pass
 
 
 class MealUpdateSchema(BaseModel):
@@ -28,14 +29,34 @@ class MealUpdateSchema(BaseModel):
     description: str | None = None
 
 
+class AllMealsResponse(BaseModel):
+    """Расширенная версия ответа со списком MealResponse"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    components: List["MealResponse"] = Field(..., min_length=1)
+
+
 class MealResponse(MealBase):
     """Схема для ответа по приему пищи"""
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: int
     user_id: int
     created_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    @field_validator("components", mode="before")
+    @classmethod
+    def convert_related_manager(cls, v):
+        """
+        Автоматически вызывает .all(),
+        если видит менеджер Django
+        """
+        if hasattr(v, "all"):
+            return list(v.all())
+        return v
 
     @computed_field
     def total_weight(self) -> float:

@@ -61,19 +61,16 @@ def get_by_photo(request: HttpRequest):
 
 
 @csrf_exempt
-@validate_json_body
 @require_http_methods(["GET"])
 def get_by_voice(): ...
 
 
 @csrf_exempt
-@validate_json_body
 @require_http_methods(["GET"])
 def get_by_id(): ...
 
 
 @csrf_exempt
-@validate_json_body
 @require_http_methods(["GET"])
 def get_history_by_date_and_meal_name(request: HttpRequest):
     # user = request.user.id
@@ -82,22 +79,14 @@ def get_history_by_date_and_meal_name(request: HttpRequest):
     # ---------- DEVELOPING -------------
     date_str = request.GET.get("dateTime")
     meal_name_str = request.GET.get("mealType")
+    errors = {}
     if not date_str:
-        return JsonResponse(
-            {"success": False, "error": "dateTime parameter is required"},
-            status=400,
-        )
+        errors["dateTime"] = "This parameter is required"
     if not meal_name_str:
-        return JsonResponse(
-            {"success": False, "error": "mealType parameter is required"},
-            status=400,
-        )
+        errors["mealType"] = "This parameter is required"
 
-    if not isinstance(meal_name_str, str):
-        return JsonResponse(
-            {"success": False, "error": "mealType parameter str"},
-            status=400,
-        )
+    if errors:
+        return JsonResponse({"success": False, "errors": errors}, status=400)
 
     try:
         target_date = is_dat_is_valid(date_str=date_str)
@@ -114,24 +103,26 @@ def get_history_by_date_and_meal_name(request: HttpRequest):
     meals_model = MealService.get_history_by_date_and_meal_name(
         target_date=target_date, target_meal_name=meal_name_str, user=user
     )
+    try:
+        adapter = TypeAdapter(List[MealResponse])
+        meals = adapter.validate_python(meals_model)
+        messages = {"history": "Data retrieved successfully"}
+        if not meals:
+            messages["history"] = "Meals is empty"
 
-    adapter = TypeAdapter(List[MealResponse])
-    meals = adapter.validate_python(meals_model)
-    if not meals:
+        response = AllMealsResponse(name="meal", components=meals)
         return JsonResponse(
-            {"success": False, "error": "No data"},
-            status=400,
+            {
+                "success": True,
+                "data": response.model_dump(),
+                "message": messages,
+            },
+            status=200,
         )
-
-    response = AllMealsResponse(name="meal", components=meals)
-    return JsonResponse(
-        {
-            "success": True,
-            "data": response.model_dump(),
-            "message": "Meal created successfully",
-        },
-        status=200,
-    )
+    except Exception as e:
+        return JsonResponse(
+            {"success": False, "error": f"Serialization error: {str(e)}"}, status=500
+        )
 
 
 @csrf_exempt

@@ -100,4 +100,4 @@ class AllMealsResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     name: str
-    components: List[MealResponse] = Field(..., min_length=1)
+    components: List[MealResponse] | None

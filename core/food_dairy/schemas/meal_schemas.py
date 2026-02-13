@@ -9,10 +9,14 @@ from core.food_dairy.schemas.dish_schemas import DishResponse, DishCreate, DishB
 class MealBase(BaseModel):
     """Базовая схема приема пищи"""
 
-    name: str | None = Field(..., max_length=100, description="Завтрак, Обед и т.д.")
-    created_at: datetime | None = None
-    portion_size: str = Field(..., description="Текстовое описание размера порции")
-    description: str | None = Field(None, max_length=200)
+    name: str | None = Field(
+        default=None, max_length=100, description="Завтрак, Обед и т.д."
+    )
+    created_at: datetime = Field(default_factory=datetime.now)
+    portion_size: str = Field(
+        default=None, description="Текстовое описание размера порции"
+    )
+    description: str | None = Field(default=None, max_length=200)
     components: List[DishBase] = Field(..., min_length=1)
 
 
@@ -24,20 +28,11 @@ class MealCreate(MealBase):
 
 class MealUpdate(BaseModel):
     id: int
-    name: str | None = None
-    portion_size: str | None = None
-    # created_at: datetime | None = None
-    description: str | None = None
+    # name: str | None = None
+    # portion_size: str | None = None
+    # # created_at: datetime | None = None
+    # description: str | None = None
     components: List[DishBase] | None = None
-
-
-class AllMealsResponse(BaseModel):
-    """Расширенная версия ответа со списком MealResponse"""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    name: str
-    components: List["MealResponse"] = Field(..., min_length=1)
 
 
 class MealResponse(MealBase):
@@ -84,10 +79,12 @@ class MealResponse(MealBase):
     def avg_score(self) -> float:
         if not self.components:
             return 0.0
-        return sum(item.score for item in self.components) / len(self.components)
+        return round(
+            sum(item.score for item in self.components) / len(self.components), 2
+        )
 
 
-class MealShortResponse(MealBase):
+class MealShortResponse(BaseModel):
     """Краткая версия ответа (например, для списка приемов пищи без деталей)"""
 
     id: int
@@ -95,3 +92,12 @@ class MealShortResponse(MealBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AllMealsResponse(BaseModel):
+    """Расширенная версия ответа со списком MealResponse"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    components: List[MealResponse] = Field(..., min_length=1)

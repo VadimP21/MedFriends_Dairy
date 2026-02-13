@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field, ConfigDict, computed_field
 class DishBase(BaseModel):
     """Базовая схема блюда"""
 
+    model_config = ConfigDict(from_attributes=True)
+
     name: str = Field(..., max_length=200)
 
     weight: float = Field(..., ge=0.0, le=10000.0, description="Вес продукта в граммах")

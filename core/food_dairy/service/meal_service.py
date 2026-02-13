@@ -77,11 +77,8 @@ class MealService:
 
         return meal_model
 
-        # for component in payload.components:
-        # meal_for_update_model.name = payload.name
-        #
-        # # Обновляем только присланные поля
-        # for field in ['name', 'portion_size', 'description']:
-        #     if field in request.json_data:
-        #         setattr(meal, field, request.json_data[field])
-        # meal.save()
+    @staticmethod
+    def delete_meal(meal_id:int) -> None:
+
+        meal = get_object_or_404(Meal, id=meal_id)
+        meal.delete()

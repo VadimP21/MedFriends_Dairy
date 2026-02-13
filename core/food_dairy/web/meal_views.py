@@ -106,7 +106,7 @@ def food_diary_view(request: HttpRequest):
             status=200,
         )
 
-    if request.method == "PUT":
+    elif request.method == "PUT":
         # meal_id = request.json_data.get("mealId")
 
         try:
@@ -127,3 +127,9 @@ def food_diary_view(request: HttpRequest):
             },
             status=201,
         )
+
+    elif request.method == "DELETE":
+        meal_id = request.GET.get('mealID')
+        MealService.delete_meal(meal_id=int(meal_id))
+
+        return JsonResponse({"status": "Meal deleted"})

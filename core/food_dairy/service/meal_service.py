@@ -5,14 +5,15 @@ from django.shortcuts import get_object_or_404
 
 from core.food_dairy.models import Meal, Dish
 from core.food_dairy.schemas.meal_schemas import MealCreate, MealUpdate
+from core.food_dairy.utils import get_meal_name_by_time
 
 
 class MealService:
 
     @staticmethod
     def create_meal(payload: MealCreate, user) -> Meal:
-        # if payload.name is None:
-        #     name = utils.install_name_by_time(payload.time)
+        if payload.name is None:
+            payload.name = get_meal_name_by_time(timestamp=payload.created_at)
 
         meal_model = Meal.objects.create(
             user=user,
@@ -55,7 +56,7 @@ class MealService:
             new_components = []
             for item in components_data:
                 # Пытаемся найти по id или создаем новый (зависит от вашей логики)
-                dish_id = item.get('id')
+                dish_id = item.get("id")
                 if dish_id:
                     # Обновляем существующий компонент
                     dish = Dish.objects.filter(id=dish_id).update(**item)
@@ -71,14 +72,19 @@ class MealService:
 
             # ----------------------------------------------------------
 
-        meal_model = Meal.objects.prefetch_related("components").get(id=meal_for_update_model.id)
+        meal_model = Meal.objects.prefetch_related("components").get(
+            id=meal_for_update_model.id
+        )
 
         print("@@@@@@@@@@@@@@@@@@", meal_model)
 
         return meal_model
 
     @staticmethod
-    def delete_meal(meal_id:int) -> None:
+    def delete_meal(meal_id: int) -> None:
 
         meal = get_object_or_404(Meal, id=meal_id)
         meal.delete()
+
+    @staticmethod
+    def meal_photo_handler(file_path: str) -> Meal: ...

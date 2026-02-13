@@ -1,7 +1,11 @@
 import json
 from datetime import datetime
 from functools import wraps
+
+from django.core.cache import cache
 from django.http import HttpRequest, JsonResponse
+
+from core.food_dairy.models import MealTimeSlot
 
 
 def validate_json_request(func):
@@ -59,7 +63,21 @@ def validate_json_body(func):
     return wrapper
 
 
-def install_name_by_time(name: str): ...
+def get_meal_name_by_time(timestamp: datetime):
+    slots = cache.get("meal_time_slots")
+
+    if slots is None:
+        # Если в кэше нет, берем из БД и сохраняем в кэш на 24 часа
+        slots = list(MealTimeSlot.objects.all())
+        cache.set("meal_time_slots", slots, 60 * 60 * 24)
+
+    hour = timestamp.hour
+
+    for slot in slots:
+        if slot.start_hour <= hour < slot.end_hour:
+            return slot.get_title_display().lower()
+
+    return "перекус"
 
 
 def is_dat_is_valid(date_str: str):

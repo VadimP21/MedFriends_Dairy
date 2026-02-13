@@ -1,3 +1,7 @@
 from django.contrib import admin
+from .models import MealTimeSlot
 
-# Register your models here.
+
+@admin.register(MealTimeSlot)
+class MealTimeSlotAdmin(admin.ModelAdmin):
+    list_display = ("title", "start_hour", "end_hour")

@@ -11,8 +11,7 @@ urlpatterns = [
     #     search_meal_by_date,
     #     name="search_meal_by_date",
     # ),
-    path('', food_diary_view, name='food_diary'),
-
+    path("", food_diary_view, name="food_diary"),
     # ========== DISH ROUTERS ==========
     # path(
     #     "/?dataTime=<str:timestamp>",

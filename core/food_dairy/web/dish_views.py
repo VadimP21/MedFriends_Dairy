@@ -14,7 +14,6 @@ from core.food_dairy.service.dish_service import DishService
 from core.food_dairy.utils import validate_json_request
 
 
-
 @csrf_exempt
 @validate_json_request
 def hard_create_dish(

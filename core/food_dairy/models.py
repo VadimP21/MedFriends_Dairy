@@ -58,7 +58,7 @@ class Dish(models.Model):
         verbose_name_plural = "Продукты"
 
     def __str__(self):
-        return f"{self.name} (weight: {self.weight}, score: {self.score})"
+        return f"{self.name} (weight: {self.weight}, score: {self.score}, meal: {self.meal})"
 
     def checking_correctness_of_calories(self) -> bool:
         # Проверка корректности калорий (примерно 4 ккал на г белка/углеводов и 9 на г жира)

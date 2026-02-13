@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from functools import wraps
 from django.http import HttpRequest, JsonResponse
 
@@ -56,3 +57,15 @@ def validate_json_body(func):
         return func(request, *args, **kwargs)
 
     return wrapper
+
+
+def install_name_by_time(name: str): ...
+
+
+def is_dat_is_valid(date_str: str):
+    if date_str.isdigit():
+        target_date = datetime.fromtimestamp(int(date_str)).date()
+    else:
+        target_date = datetime.strptime(date_str, "%d.%m.%Y").date()
+
+    return target_date

@@ -19,7 +19,11 @@ from core.food_dairy.schemas.meal_schemas import (
     MealResponse,
     AllMealsResponse,
 )
-from core.food_dairy.utils import validate_json_request, validate_json_body
+from core.food_dairy.utils import (
+    validate_json_request,
+    validate_json_body,
+    is_dat_is_valid,
+)
 
 
 @csrf_exempt
@@ -45,7 +49,9 @@ def get_by_id(): ...
 @require_http_methods(["POST", "GET", "PUT", "DELETE"])
 def food_diary_view(request: HttpRequest):
     # user = request.user.id
+    # ---------- DEVELOPING -------------
     user = User.objects.get(id=1)
+    # ---------- DEVELOPING -------------
     if request.method == "POST":
         try:
             meal = MealCreate.model_validate(request.json_data)
@@ -74,10 +80,7 @@ def food_diary_view(request: HttpRequest):
             )
 
         try:
-            if date_str.isdigit():
-                target_date = datetime.fromtimestamp(int(date_str)).date()
-            else:
-                target_date = datetime.strptime(date_str, "%d.%m.%Y").date()
+            target_date = is_dat_is_valid(date_str=date_str)
 
         except ValueError:
             return JsonResponse(
@@ -90,13 +93,14 @@ def food_diary_view(request: HttpRequest):
 
         meals_model = MealService.get_meals_by_date(target_date=target_date, user=user)
 
-        adapter = TypeAdapter(List[DishResponse])
+        adapter = TypeAdapter(List[MealResponse])
         meals = adapter.validate_python(meals_model)
 
+        response = AllMealsResponse(name="meal", components=meals)
         return JsonResponse(
             {
                 "success": True,
-                "data": [meal.model_dump() for meal in meals],
+                "data": response.model_dump(),
                 "message": "Meal created successfully",
             },
             status=200,

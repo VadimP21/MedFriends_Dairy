@@ -18,15 +18,11 @@ class MealService:
             portion_size=payload.portion_size,
             description=payload.description,
         )
-        # 2. Создаем связанные блюда
-        print("@@@@@@@@@@@@@@@@@@", meal_model)
         dish_objects = [
             Dish(**dish.model_dump(), meal=meal_model) for dish in payload.components
         ]
         Dish.objects.bulk_create(dish_objects)
-        # meal_model.components.set(dish_objects)
-        print("@@@@@@@@@@@@@@@@@@", dish_objects)
-        print("@@@@@@@@@@@@@@@@@@", meal_model.components.all())
+        # print("@@@@@@@@@@@@@@@@@@", dish_objects)
         return meal_model
 
     @staticmethod
@@ -38,15 +34,18 @@ class MealService:
         meals_qwery_set = Meal.objects.filter(
             user=user, created_at__date=target_date
         ).prefetch_related("components")
-        meals_model = []
-        for meal in meals_qwery_set:
-            meals_model.append(
-                {
-                    "id": meal.pk,
-                    "name": meal.name,
-                    "portion_size": meal.portion_size,
-                    "created_at": meal.created_at,
-                    "components": list(meal.components.values()),
-                }
-            )
-        return meals_model
+        print("@@@@@@@@@@@@@@@@@@", meals_qwery_set)
+        return meals_qwery_set
+
+        # meals_model = []
+        # for meal in meals_qwery_set:
+        #     meals_model.append(
+        #         {
+        #             "id": meal.pk,
+        #             "name": meal.name,
+        #             "portion_size": meal.portion_size,
+        #             "created_at": meal.created_at,
+        #             "components": list(meal.components.values()),
+        #         }
+        #     )
+        # return meals_model

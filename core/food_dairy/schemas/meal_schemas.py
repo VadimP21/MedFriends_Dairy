@@ -26,7 +26,7 @@ class MealCreate(MealBase):
     pass
 
 
-class MealUpdate(BaseModel):
+class MealUpdate(MealBase):
     id: int
     # name: str | None = None
     # portion_size: str | None = None

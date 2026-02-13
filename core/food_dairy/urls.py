@@ -1,6 +1,11 @@
 from django.http import JsonResponse
 from django.urls import path
-from .web.meal_views import food_diary_view, get_by_photo, get_by_voice
+from .web.meal_views import (
+    food_diary_view,
+    get_by_photo,
+    get_by_voice,
+    get_history_by_date_and_meal_name,
+)
 
 urlpatterns = [
     # ========== ROOT ROUTERS ==========
@@ -12,6 +17,7 @@ urlpatterns = [
     #     name="search_meal_by_date",
     # ),
     path("", food_diary_view, name="food_diary"),
+    path("history/", get_history_by_date_and_meal_name, name="history"),
     # ========== DISH ROUTERS ==========
     # path(
     #     "/?dataTime=<str:timestamp>",

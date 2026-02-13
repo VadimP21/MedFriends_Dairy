@@ -40,15 +40,29 @@ class MealService:
         return meals_qwery_set
 
     @staticmethod
+    def get_history_by_date_and_meal_name(
+        target_date: date, target_meal_name: str, user
+    ) -> List[Meal]:
+        meals_qwery_set = Meal.objects.filter(
+            user=user, created_at__date=target_date, name__iexact=target_meal_name
+        ).prefetch_related("components")
+
+        return meals_qwery_set
+
+    @staticmethod
     def update_meal(payload: MealUpdate, user) -> Meal:
 
         meal_for_update_model = get_object_or_404(Meal, id=payload.id, user=user)
+
+        if payload.name is None:
+            payload.name = get_meal_name_by_time(timestamp=payload.created_at)
 
         payload_data = payload.model_dump(exclude_unset=True)
         components_data = payload_data.pop("components", None)
 
         for field, value in payload_data.items():
             setattr(meal_for_update_model, field, value)
+
         meal_for_update_model.save()
 
         if components_data is not None:
@@ -75,8 +89,6 @@ class MealService:
         meal_model = Meal.objects.prefetch_related("components").get(
             id=meal_for_update_model.id
         )
-
-        print("@@@@@@@@@@@@@@@@@@", meal_model)
 
         return meal_model
 

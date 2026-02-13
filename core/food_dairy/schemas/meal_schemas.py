@@ -22,11 +22,13 @@ class MealCreate(MealBase):
     pass
 
 
-class MealUpdateSchema(BaseModel):
+class MealUpdate(BaseModel):
     id: int
     name: str | None = None
     portion_size: str | None = None
+    # created_at: datetime | None = None
     description: str | None = None
+    components: List[DishBase] | None = None
 
 
 class AllMealsResponse(BaseModel):

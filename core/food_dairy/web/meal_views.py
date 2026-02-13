@@ -17,7 +17,7 @@ from core.food_dairy.schemas.dish_schemas import DishCreate, DishResponse, DishU
 from core.food_dairy.schemas.meal_schemas import (
     MealCreate,
     MealResponse,
-    AllMealsResponse,
+    AllMealsResponse, MealUpdate,
 )
 from core.food_dairy.utils import (
     validate_json_request,
@@ -104,4 +104,26 @@ def food_diary_view(request: HttpRequest):
                 "message": "Meal created successfully",
             },
             status=200,
+        )
+
+    if request.method == "PUT":
+        # meal_id = request.json_data.get("mealId")
+
+        try:
+            meal = MealUpdate.model_validate(request.json_data)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+        with transaction.atomic():
+            meal_model = MealService.update_meal(payload=meal, user=user)
+
+            meal_response = MealResponse.model_validate(meal_model)
+            response = AllMealsResponse(name="meal", components=[meal_response])
+        return JsonResponse(
+            {
+                "success": True,
+                "data": response.model_dump(),
+                "message": "Meal created successfully",
+            },
+            status=201,
         )

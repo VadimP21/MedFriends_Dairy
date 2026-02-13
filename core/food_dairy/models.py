@@ -140,3 +140,30 @@ class Meal(models.Model):
         if not components:
             return 0
         return sum(c.score for c in components) / components.count()
+
+
+class MealTimeSlot(models.Model):
+    TITLE_CHOICES = [
+        ("breakfast", "Завтрак"),
+        ("lunch", "Обед"),
+        ("dinner", "Ужин"),
+        ("snack", "Перекус"),
+    ]
+
+    title = models.CharField(
+        "Название приема пищи", max_length=20, choices=TITLE_CHOICES, unique=True
+    )
+    start_hour = models.PositiveSmallIntegerField(
+        "Час начала (0-23)", validators=[MinValueValidator(0), MaxValueValidator(23)]
+    )
+    end_hour = models.PositiveSmallIntegerField(
+        "Час окончания (0-23)", validators=[MinValueValidator(0), MaxValueValidator(23)]
+    )
+
+    class Meta:
+        verbose_name = "Интервал приема пищи"
+        verbose_name_plural = "Интервалы приема пищи"
+        ordering = ["start_hour"]
+
+    def __str__(self):
+        return f"{self.get_title_display()}: {self.start_hour}:00 - {self.end_hour}:00"

@@ -174,12 +174,13 @@ def food_diary_view(request: HttpRequest):
         adapter = TypeAdapter(List[MealResponse])
         meals = adapter.validate_python(meals_model)
 
+        message = "Data retrieved successfully" if meals else "Meals list is empty"
         response = AllMealsResponse(name="meal", components=meals)
         return JsonResponse(
             {
                 "success": True,
                 "data": response.model_dump(),
-                "message": "Meal created successfully",
+                "message": message,
             },
             status=200,
         )
@@ -193,13 +194,15 @@ def food_diary_view(request: HttpRequest):
         with transaction.atomic():
             meal_model = MealService.update_meal(payload=meal, user=user)
             meal_response = MealResponse.model_validate(meal_model)
+
+            message = "Meal updated successfully" if meal_response else "Meals list is empty"
             response = AllMealsResponse(name="meal", components=[meal_response])
 
         return JsonResponse(
             {
                 "success": True,
                 "data": response.model_dump(),
-                "message": "Meal updated successfully",
+                "message": message,
             },
             status=200,
         )
@@ -211,7 +214,6 @@ def food_diary_view(request: HttpRequest):
                 {"success": False, "error": "mealID is required"}, status=400
             )
         try:
-            # add user in service
             MealService.delete_meal(meal_id=int(meal_id), user=user)
         except Exception as e:
             return JsonResponse({"success": False, "error": str(e)}, status=400)

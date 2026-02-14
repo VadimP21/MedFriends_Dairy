@@ -79,7 +79,7 @@ class MealService:
                 else:
                     new_dish = Dish.objects.create(**item, meal=meal_for_update_model)
                     current_dish_ids.append(new_dish.id)
-                # (Опционально) Удаляем те компоненты, которые не пришли в запросе (синхронизация)
+
                 Dish.objects.filter(meal=meal_for_update_model).exclude(
                     id__in=current_dish_ids
                 ).delete()
@@ -92,7 +92,7 @@ class MealService:
     @staticmethod
     def delete_meal(meal_id: int, user) -> None:
 
-        meal = get_object_or_404(Meal, id=meal_id)
+        meal = get_object_or_404(Meal, id=meal_id, user=user)
         meal.delete()
 
     @staticmethod

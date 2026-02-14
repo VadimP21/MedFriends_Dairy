@@ -162,7 +162,6 @@ def food_diary_view(request: HttpRequest):
 
         try:
             target_date = is_dat_is_valid(date_str=date_str)
-
         except ValueError:
             return JsonResponse(
                 {
@@ -188,8 +187,6 @@ def food_diary_view(request: HttpRequest):
         )
 
     elif request.method == "PUT":
-        # meal_id = request.json_data.get("mealId")
-
         try:
             meal = MealUpdate.model_validate(request.json_data)
         except Exception as e:
@@ -197,20 +194,30 @@ def food_diary_view(request: HttpRequest):
 
         with transaction.atomic():
             meal_model = MealService.update_meal(payload=meal, user=user)
-
             meal_response = MealResponse.model_validate(meal_model)
             response = AllMealsResponse(name="meal", components=[meal_response])
+
         return JsonResponse(
             {
                 "success": True,
                 "data": response.model_dump(),
-                "message": "Meal created successfully",
+                "message": "Meal updated successfully",
             },
-            status=201,
+            status=200,
         )
 
     elif request.method == "DELETE":
         meal_id = request.GET.get("mealID")
-        MealService.delete_meal(meal_id=int(meal_id))
+        if not meal_id:
+            return JsonResponse(
+                {"success": False, "error": "mealID is required"}, status=400
+            )
+        try:
+            # add user in service
+            MealService.delete_meal(meal_id=int(meal_id), user=user)
+        except Exception as e:
+            return JsonResponse({"success": False, "error": str(e)}, status=400)
 
-        return JsonResponse({"status": "Meal deleted"})
+        return JsonResponse(
+            {"success": True, "message": "Meal deleted successfully"}, status=204
+        )

@@ -1,6 +1,7 @@
 from datetime import date
 from typing import List
 
+from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
 
 from core.food_dairy.models import Meal, Dish
@@ -20,6 +21,7 @@ class MealService:
             name=payload.name,
             portion_size=payload.portion_size,
             description=payload.description,
+            created_at=payload.created_at,
         )
         dish_objects = [
             Dish(**dish.model_dump(), meal=meal_model) for dish in payload.components
@@ -29,25 +31,21 @@ class MealService:
         return meal_model
 
     @staticmethod
-    def get_meals_by_date(target_date: date, user) -> List[Meal]:
+    def get_meals_by_date(target_date: date, user) -> QuerySet[Meal, Meal]:
         """
         Фильтрация блюд по конкретной дате (день, месяц, год)
         """
-
-        meals_qwery_set = Meal.objects.filter(
+        return Meal.objects.filter(
             user=user, created_at__date=target_date
         ).prefetch_related("components")
-        return meals_qwery_set
 
     @staticmethod
     def get_history_by_date_and_meal_name(
         target_date: date, target_meal_name: str, user
-    ) -> List[Meal]:
-        meals_qwery_set = Meal.objects.filter(
+    ) -> QuerySet[Meal, Meal]:
+        return Meal.objects.filter(
             user=user, created_at__date=target_date, name__iexact=target_meal_name
         ).prefetch_related("components")
-
-        return meals_qwery_set
 
     @staticmethod
     def update_meal(payload: MealUpdate, user) -> Meal:
@@ -67,24 +65,36 @@ class MealService:
 
         if components_data is not None:
             # -------------- ПЕРЕНЕСТИ В dish_update -------------------
-            new_components = []
+            current_dish_ids = []
             for item in components_data:
                 # Пытаемся найти по id или создаем новый (зависит от вашей логики)
                 dish_id = item.get("id")
                 if dish_id:
                     # Обновляем существующий компонент
-                    dish = Dish.objects.filter(id=dish_id).update(**item)
-                    new_components.append(dish)
+                    #! dish = Dish.objects.filter(id=dish_id).update(**item)
+                    #! new_components.append(dish)
+                    Dish.objects.filter(id=dish_id, meal=meal_for_update_model).update(
+                        **item
+                    )
+                    current_dish_ids.append(dish_id)
                 else:
                     # Создаем новый, если id нет
-                    new_dish = Dish.objects.create(**item)
-                    new_components.append(new_dish)
-
+                    #! new_dish = Dish.objects.create(**item)
+                    #! new_components.append(new_dish)
+                    new_dish = Dish.objects.create(**item, meal=meal_for_update_model)
+                    current_dish_ids.append(new_dish.id)
+                # (Опционально) Удаляем те компоненты, которые не пришли в запросе (синхронизация)
+                Dish.objects.filter(meal=meal_for_update_model).exclude(
+                    id__in=current_dish_ids
+                ).delete()
                 # Привязываем обновленный список к Meal
 
-            meal_for_update_model.components.set(new_components)
+            # meal_for_update_model.components.set(new_components)
 
             # ----------------------------------------------------------
+        return Meal.objects.prefetch_related("components").get(
+            id=meal_for_update_model.id
+        )
 
         meal_model = Meal.objects.prefetch_related("components").get(
             id=meal_for_update_model.id
@@ -93,7 +103,7 @@ class MealService:
         return meal_model
 
     @staticmethod
-    def delete_meal(meal_id: int) -> None:
+    def delete_meal(meal_id: int, user) -> None:
 
         meal = get_object_or_404(Meal, id=meal_id)
         meal.delete()

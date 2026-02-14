@@ -3,7 +3,7 @@ from typing import List
 
 from pydantic import BaseModel, Field, ConfigDict, computed_field, field_validator
 
-from core.food_dairy.schemas.dish_schemas import DishResponse, DishCreate, DishBase
+from core.food_dairy.schemas.dish_schemas import DishBase
 
 
 class MealBase(BaseModel):

@@ -1,5 +1,4 @@
 from datetime import date
-from typing import List
 
 from django.db.models import QuerySet
 from django.shortcuts import get_object_or_404
@@ -43,9 +42,13 @@ class MealService:
     def get_history_by_date_and_meal_name(
         target_date: date, target_meal_name: str, user
     ) -> QuerySet[Meal, Meal]:
-        return Meal.objects.filter(
-            user=user, created_at__date=target_date, name__iexact=target_meal_name
-        ).prefetch_related("components")
+        return (
+            Meal.objects.filter(
+                user=user, created_at__date=target_date, name__iexact=target_meal_name
+            )
+            .prefetch_related("components")
+            .order_by("-created_at")
+        )
 
     @staticmethod
     def update_meal(payload: MealUpdate, user) -> Meal:
@@ -67,40 +70,24 @@ class MealService:
             # -------------- ПЕРЕНЕСТИ В dish_update -------------------
             current_dish_ids = []
             for item in components_data:
-                # Пытаемся найти по id или создаем новый (зависит от вашей логики)
                 dish_id = item.get("id")
                 if dish_id:
-                    # Обновляем существующий компонент
-                    #! dish = Dish.objects.filter(id=dish_id).update(**item)
-                    #! new_components.append(dish)
                     Dish.objects.filter(id=dish_id, meal=meal_for_update_model).update(
                         **item
                     )
                     current_dish_ids.append(dish_id)
                 else:
-                    # Создаем новый, если id нет
-                    #! new_dish = Dish.objects.create(**item)
-                    #! new_components.append(new_dish)
                     new_dish = Dish.objects.create(**item, meal=meal_for_update_model)
                     current_dish_ids.append(new_dish.id)
                 # (Опционально) Удаляем те компоненты, которые не пришли в запросе (синхронизация)
                 Dish.objects.filter(meal=meal_for_update_model).exclude(
                     id__in=current_dish_ids
                 ).delete()
-                # Привязываем обновленный список к Meal
-
-            # meal_for_update_model.components.set(new_components)
 
             # ----------------------------------------------------------
         return Meal.objects.prefetch_related("components").get(
             id=meal_for_update_model.id
         )
-
-        meal_model = Meal.objects.prefetch_related("components").get(
-            id=meal_for_update_model.id
-        )
-
-        return meal_model
 
     @staticmethod
     def delete_meal(meal_id: int, user) -> None:

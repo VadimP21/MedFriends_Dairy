@@ -1,9 +1,6 @@
-import json
 from datetime import datetime
-from functools import wraps
 
 from django.core.cache import cache
-from django.http import HttpRequest, JsonResponse
 
 from core.food_dairy.models import MealTimeSlot
 
@@ -80,7 +77,7 @@ def get_meal_name_by_time(timestamp: datetime):
     return "перекус"
 
 
-def is_dat_is_valid(date_str: str):
+def is_date_is_valid(date_str: str):
     if date_str.isdigit():
         target_date = datetime.fromtimestamp(int(date_str)).date()
     else:

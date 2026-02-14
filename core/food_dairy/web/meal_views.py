@@ -3,7 +3,6 @@ like web.py in Base project
 """
 
 import os
-from datetime import datetime
 from typing import List
 
 from django.contrib.auth.models import User
@@ -15,7 +14,6 @@ from django.views.decorators.http import require_http_methods
 from pydantic import TypeAdapter
 
 from core.food_dairy.service.meal_service import MealService
-from core.food_dairy.schemas.dish_schemas import DishCreate, DishResponse, DishUpdate
 from core.food_dairy.schemas.meal_schemas import (
     MealCreate,
     MealResponse,
@@ -23,9 +21,8 @@ from core.food_dairy.schemas.meal_schemas import (
     MealUpdate,
 )
 from core.food_dairy.utils import (
-    validate_json_request,
     validate_json_body,
-    is_dat_is_valid,
+    is_date_is_valid,
 )
 
 
@@ -33,7 +30,7 @@ from core.food_dairy.utils import (
 @validate_json_body
 @require_http_methods(["POST"])
 def get_by_photo(request: HttpRequest):
-    # user = request.user.id
+    # user = request.user
     # ---------- DEVELOPING -------------
     user = User.objects.get(id=1)
     # ---------- DEVELOPING -------------
@@ -73,12 +70,14 @@ def get_by_id(): ...
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_history_by_date_and_meal_name(request: HttpRequest):
-    # user = request.user.id
+    # user = request.user
     # ---------- DEVELOPING -------------
     user = User.objects.get(id=1)
     # ---------- DEVELOPING -------------
+
     date_str = request.GET.get("dateTime")
     meal_name_str = request.GET.get("mealType")
+
     errors = {}
     if not date_str:
         errors["dateTime"] = "This parameter is required"
@@ -89,7 +88,7 @@ def get_history_by_date_and_meal_name(request: HttpRequest):
         return JsonResponse({"success": False, "errors": errors}, status=400)
 
     try:
-        target_date = is_dat_is_valid(date_str=date_str)
+        target_date = is_date_is_valid(date_str=date_str)
 
     except ValueError:
         return JsonResponse(
@@ -100,22 +99,21 @@ def get_history_by_date_and_meal_name(request: HttpRequest):
             status=400,
         )
 
-    meals_model = MealService.get_history_by_date_and_meal_name(
+    meals_queryset = MealService.get_history_by_date_and_meal_name(
         target_date=target_date, target_meal_name=meal_name_str, user=user
     )
     try:
         adapter = TypeAdapter(List[MealResponse])
-        meals = adapter.validate_python(meals_model)
-        messages = {"history": "Data retrieved successfully"}
-        if not meals:
-            messages["history"] = "Meals is empty"
+        meals = adapter.validate_python(meals_queryset)
+
+        message = "Data retrieved successfully" if meals else "Meals list is empty"
 
         response = AllMealsResponse(name="meal", components=meals)
         return JsonResponse(
             {
                 "success": True,
                 "data": response.model_dump(),
-                "message": messages,
+                "message": message,
             },
             status=200,
         )
@@ -129,7 +127,7 @@ def get_history_by_date_and_meal_name(request: HttpRequest):
 @validate_json_body
 @require_http_methods(["POST", "GET", "PUT", "DELETE"])
 def food_diary_view(request: HttpRequest):
-    # user = request.user.id
+    # user = request.user
     # ---------- DEVELOPING -------------
     user = User.objects.get(id=1)
     # ---------- DEVELOPING -------------
@@ -161,7 +159,7 @@ def food_diary_view(request: HttpRequest):
             )
 
         try:
-            target_date = is_dat_is_valid(date_str=date_str)
+            target_date = is_date_is_valid(date_str=date_str)
         except ValueError:
             return JsonResponse(
                 {

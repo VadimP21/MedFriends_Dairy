@@ -1,7 +1,6 @@
 import datetime
 import typing as t
-import uuid
-
+from uuid import UUID
 from ninja import Schema
 from pydantic import Field, field_validator, ConfigDict
 
@@ -25,7 +24,7 @@ class DishCreateIn(DishBaseIn):
 
 class DishOut(Schema):
     """Ответ с данными блюда"""
-    id: uuid.UUID
+    id: UUID
     name: str
     weight: float
     calories: int
@@ -42,9 +41,9 @@ class DishOut(Schema):
 
 class MealBaseIn(Schema):
     """Базовая схема приема пищи"""
-    name: str = Field(None, description="breakfast/lunch/dinner/snack")
-    meal_date: datetime.date = Field(..., description="Дата приема пищи")
-    meal_time: datetime.time = Field(..., description="Время приема пищи")
+    name: t.Optional[str] = Field(None, description="breakfast/lunch/dinner/snack")
+    meal_date: datetime.date = Field(default_factory=lambda: datetime.datetime.now().date(), description="Дата приема пищи")
+    meal_time: datetime.time = Field(default_factory=lambda: datetime.datetime.now().time(), description="Время приема пищи")
     portion_size: str = Field(..., description="Текстовое описание размера порции")
     description: t.Optional[str] = Field(None, max_length=200)
     components: list[DishCreateIn] = Field(..., min_length=1)
@@ -64,19 +63,25 @@ class MealCreateIn(MealBaseIn):
 
 class MealUpdateIn(Schema):
     """Обновление приема пищи (все опционально)"""
-    id: uuid.UUID
-    name: t.Optional[str] = None
-    meal_date: t.Optional[datetime.date] = None
-    meal_time: t.Optional[datetime.time] = None
-    portion_size: t.Optional[str] = None
-    description: t.Optional[str] = None
-    components: t.Optional[list[DishCreateIn]] = None
+    id: UUID
+    name: t.Optional[str] = Field(None, description="breakfast/lunch/dinner/snack")
+    meal_date: t.Optional[datetime.date] = Field(None, description="Дата приема пищи")
+    meal_time: t.Optional[datetime.time] = Field(None, description="Время приема пищи")
+    portion_size: t.Optional[str] = Field(None, description="Текстовое описание размера порции")
+    description: t.Optional[str] = Field(None, max_length=200, description="Описание")
+    components: t.Optional[list[DishCreateIn]] = Field(None, description="Список блюд")
 
+    @field_validator('name')
+    def validate_meal_type(cls, v):
+        allowed = ['breakfast', 'lunch', 'dinner', 'snack']
+        if v not in allowed:
+            raise ValueError(f'meal_name must be one of {allowed}')
+        return v
 
 class MealOut(Schema):
     """Ответ с данными приема пищи"""
-    id: uuid.UUID
-    patient_id: uuid.UUID
+    id: UUID
+    patient_id: UUID
     name: str
     meal_date: datetime.date
     meal_time: datetime.time
@@ -106,7 +111,7 @@ class MealsResponse(Schema):
 
 class MealListOut(Schema):
     """Краткий ответ для списка приемов пищи"""
-    id: uuid.UUID
+    id: UUID
     name: str
     meal_date: datetime.date
     meal_time: datetime.time

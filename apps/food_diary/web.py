@@ -1,3 +1,4 @@
+from uuid import UUID
 
 from apps.food_diary.base import CreateMealSuccessResponse, ValidationErrorResponse, ErrorResponse, \
     UpdateMealSuccessResponse, NotFoundResponse, GetMealSuccessResponse, DeleteMealSuccessResponse, \
@@ -8,9 +9,8 @@ from apps.food_diary.schemas import (
 )
 from apps.food_diary.services import MealService
 from apps.accounts.models import PatientProfile
-from apps.food_diary.utils import parse_uuid
 from ninja import Router, Query
-from django.http import HttpRequest
+from django.http import HttpRequest, Http404
 from django.core.exceptions import ValidationError
 from django.db import OperationalError, IntegrityError
 import datetime
@@ -44,8 +44,6 @@ def _get_patient_profile(request: HttpRequest) -> PatientProfile:
 # СОЗДАЕМ ЗАЩИЩЕННЫЙ РОУТЕР
 food_dairy_routes = Router(tags=["Food"])
 
-
-# MARK: - Meal CRUD
 
 @food_dairy_routes.post("/", response={
     201: CreateMealSuccessResponse,
@@ -143,14 +141,14 @@ def update_meal(
                 error="Validation error",
                 detail="Meal ID is required for update"
             )
-        is_valid, result = parse_uuid(payload.id)
-        if not is_valid:
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail=f"Invalid meal ID: {result}"
-            )
-
-        payload.id = result
+        # is_valid, result = parse_uuid(payload.id)
+        # if not is_valid:
+        #     return 400, ValidationErrorResponse(
+        #         error="Validation error",
+        #         detail=f"Invalid meal ID: {result}"
+        #     )
+        #
+        # payload.id = result
 
         meal = MealService.update_meal(
             patient=patient,
@@ -179,14 +177,9 @@ def update_meal(
     404: NotFoundResponse,
     500: ErrorResponse,
 })
-def get_meal_by_id(request: HttpRequest, meal_id: str):
+def get_meal_by_id(request: HttpRequest, meal_id: UUID):
     """
     Получить детали конкретного приема пищи по ID
-
-    Поддерживает UUID в форматах:
-    - С дефисами: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-    - Без дефисов: 3fa85f6457174562b3fc2c963f66afa6
-
     Returns:
         200: Meal found
         400: Invalid UUID format
@@ -195,12 +188,12 @@ def get_meal_by_id(request: HttpRequest, meal_id: str):
         500: Internal server error
     """
     try:
-        is_valid, result = parse_uuid(meal_id)
-        if not is_valid:
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail=f"Invalid meal ID: {result}"
-            )
+        # is_valid, result = parse_uuid(meal_id)
+        # if not is_valid:
+        #     return 400, ValidationErrorResponse(
+        #         error="Validation error",
+        #         detail=f"Invalid meal ID: {result}"
+        #     )
 
         patient = _get_patient_profile(request)
 
@@ -221,7 +214,7 @@ def get_meal_by_id(request: HttpRequest, meal_id: str):
             error="Permission denied",
             detail="You don't have permission to view this meal"
         )
-    except Meal.DoesNotExist:
+    except Http404:
         return 404, NotFoundResponse(
             error="Not found",
             detail=f"Meal with id {meal_id} not found"
@@ -346,15 +339,10 @@ def get_meals_by_date(
 })
 def delete_meal(
         request: HttpRequest,
-        meal_id: str = Query(..., alias="mealId"),
+        meal_id: UUID = Query(..., alias="mealId"),
 ):
     """
         Удалить прием пищи по ID
-
-        Поддерживает UUID в форматах:
-        - С дефисами: 3fa85f64-5717-4562-b3fc-2c963f66afa6
-        - Без дефисов: 3fa85f6457174562b3fc2c963f66afa6
-
         Returns:
             200: Meal deleted successfully
             400: Invalid UUID format
@@ -365,23 +353,23 @@ def delete_meal(
         """
     # Валидация UUID
     try:
-        is_valid, result = parse_uuid(meal_id)
-        if not is_valid:
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail=f"Invalid meal ID: {result}"
-            )
+        # is_valid, result = parse_uuid(meal_id)
+        # if not is_valid:
+        #     return 400, ValidationErrorResponse(
+        #         error="Validation error",
+        #         detail=f"Invalid meal ID: {result}"
+        #     )
 
         patient = _get_patient_profile(request)
 
         MealService.delete_meal(
             patient=patient,
-            meal_id=result
+            meal_id=str(meal_id)
         )
         return 200, DeleteMealSuccessResponse(
             success=True,
             message="Meal deleted successfully",
-            deleted_id=result
+            deleted_id=str(meal_id)
         )
 
     except PermissionError:
@@ -389,7 +377,7 @@ def delete_meal(
             error="Permission denied",
             detail="You don't have permission to delete this meal"
         )
-    except Meal.DoesNotExist:
+    except Http404:
         return 404, NotFoundResponse(
             error="Not found",
             detail=f"Meal with id {meal_id} not found"

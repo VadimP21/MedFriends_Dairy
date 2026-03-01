@@ -42,10 +42,10 @@ def _get_patient_profile(request: HttpRequest) -> PatientProfile:
 
 
 # СОЗДАЕМ ЗАЩИЩЕННЫЙ РОУТЕР
-food_dairy_routes = Router(tags=["Food"])
+user_routers = Router(tags=["Food"])
 
 
-@food_dairy_routes.post("/", response={
+@user_routers.post("", response={
     201: CreateMealSuccessResponse,
     400: ValidationErrorResponse,
     403: ErrorResponse,
@@ -79,8 +79,6 @@ def create_meal(
             message="Meal created successfully",
             data=response_data
         )
-
-
     except ValidationError as e:
         return 400, ValidationErrorResponse(
             error="Validation error",
@@ -111,7 +109,7 @@ def create_meal(
         )
 
 
-@food_dairy_routes.put("/", response={
+@user_routers.put("", response={
     200: UpdateMealSuccessResponse,
     400: ValidationErrorResponse,
     403: ErrorResponse,
@@ -141,14 +139,6 @@ def update_meal(
                 error="Validation error",
                 detail="Meal ID is required for update"
             )
-        # is_valid, result = parse_uuid(payload.id)
-        # if not is_valid:
-        #     return 400, ValidationErrorResponse(
-        #         error="Validation error",
-        #         detail=f"Invalid meal ID: {result}"
-        #     )
-        #
-        # payload.id = result
 
         meal = MealService.update_meal(
             patient=patient,
@@ -170,7 +160,124 @@ def update_meal(
         )
 
 
-@food_dairy_routes.get("/{meal_id}", response={
+@user_routers.get("/history", response={
+    200: GetMealsSuccessResponse,
+    400: ValidationErrorResponse,
+    403: ErrorResponse,
+    500: ErrorResponse,
+})
+def get_history_by_date_and_meal_name(
+        request: HttpRequest,
+        date_time: Optional[datetime.date] = Query(None, alias="date_time"),
+        from_date: Optional[datetime.date] = Query(None),
+        to_date: Optional[datetime.date] = Query(None),
+        meal_type: Optional[str] = Query(alias="meal_type"),
+):
+    """
+    Получить историю приемов пищи с фильтрацией по дате и типу приема
+
+    Параметры фильтрации:
+    - date_time: конкретная дата (YYYY-MM-DD) - приоритетнее from_date/to_date
+    - from_date: начало периода (YYYY-MM-DD)
+    - to_date: конец периода (YYYY-MM-DD)
+    - meal_type: тип приема пищи (breakfast/lunch/dinner/snack)
+
+    Примеры:
+    - /api/app/v1/foodDairy/history/?date_time=2026-02-13&meal_type=breakfast
+    - /api/app/v1/foodDairy/history/?from_date=2026-02-01&to_date=2026-02-13&meal_type=lunch
+    - /api/app/v1/foodDairy/history/?meal_type=dinner  (все приемы типа dinner)
+
+    Returns:
+        200: Meals found (может быть пустой список)
+        400: Invalid date format or meal type
+        403: Permission denied
+        500: Internal server error
+    """
+    try:
+        patient = _get_patient_profile(request)
+
+        # Валидация meal_type если указан
+        if meal_type and meal_type.lower() in Meal.MealTypes.values:
+            return 400, ValidationErrorResponse(
+                error="Validation error",
+                detail=f"Invalid meal_type. Must be one of: {', '.join(Meal.MealTypes.values)}"
+            )
+
+        # Если указан date_time, используем его как единственную дату
+        if date_time and not isinstance(date_time, datetime.date):
+            return 400, ValidationErrorResponse(
+                error="Validation error",
+                detail="date_time must be a valid date in format YYYY-MM-DD"
+            )
+
+        if from_date and not isinstance(from_date, datetime.date):
+            return 400, ValidationErrorResponse(
+                error="Validation error",
+                detail="from_date must be a valid date in format YYYY-MM-DD"
+            )
+
+        if to_date and not isinstance(to_date, datetime.date):
+            return 400, ValidationErrorResponse(
+                error="Validation error",
+                detail="to_date must be a valid date in format YYYY-MM-DD"
+            )
+        if not date_time and not from_date and not to_date:
+            return 400, ValidationErrorResponse(
+                error="Validation error",
+                detail="The lines date_time or (from_date and to_date) must be filled in and must be a valid date in format YYYY-MM-DD"
+            )
+        # Определяем диапазон дат
+        if date_time:
+            from_date = date_time
+            to_date = date_time
+
+        # Получаем meals с фильтрацией по дате и типу
+        meals = MealService.get_meals_by_date_range_and_type(
+            patient=patient,
+            from_date=from_date,
+            to_date=to_date,
+            meal_type=meal_type
+        )
+
+        # Формируем фильтры для ответа
+        filters = {}
+        if date_time:
+            filters["date"] = str(date_time)
+        else:
+            if from_date:
+                filters["from"] = str(from_date)
+            if to_date:
+                filters["to"] = str(to_date)
+        if meal_type:
+            filters["meal_type"] = meal_type
+
+        meals_list = list(meals)
+        response_data = MealsResponse(components=meals_list)
+
+        return 200, GetMealsSuccessResponse(
+            success=True,
+            data=response_data,
+            count=len(meals_list),
+            filters=filters if filters else None
+        )
+
+    except PermissionError:
+        return 403, ErrorResponse(
+            error="Permission denied",
+            detail="You don't have permission to view meals"
+        )
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in get_history: {e}", exc_info=True)
+
+        return 500, ErrorResponse(
+            error="Internal server error",
+            detail="An unexpected error occurred"
+        )
+
+
+@user_routers.get("/{meal_id}", response={
     200: GetMealSuccessResponse,
     400: ValidationErrorResponse,
     403: ErrorResponse,
@@ -188,13 +295,6 @@ def get_meal_by_id(request: HttpRequest, meal_id: UUID):
         500: Internal server error
     """
     try:
-        # is_valid, result = parse_uuid(meal_id)
-        # if not is_valid:
-        #     return 400, ValidationErrorResponse(
-        #         error="Validation error",
-        #         detail=f"Invalid meal ID: {result}"
-        #     )
-
         patient = _get_patient_profile(request)
 
         meal = MealService.get_meal_by_id(
@@ -230,7 +330,7 @@ def get_meal_by_id(request: HttpRequest, meal_id: UUID):
         )
 
 
-@food_dairy_routes.get("/", response={
+@user_routers.get("", response={
     200: GetMealsSuccessResponse,
     400: ValidationErrorResponse,
     403: ErrorResponse,
@@ -238,7 +338,7 @@ def get_meal_by_id(request: HttpRequest, meal_id: UUID):
 })
 def get_meals_by_date(
         request: HttpRequest,
-        date_time: Optional[datetime.date] = Query(None, alias="dateTime"),
+        date_time: Optional[datetime.date] = Query(None, alias="date_time"),
         from_date: Optional[datetime.date] = Query(None),
         to_date: Optional[datetime.date] = Query(None),
 ):
@@ -263,11 +363,11 @@ def get_meals_by_date(
     try:
         patient = _get_patient_profile(request)
 
-        # Если указан dateTime, используем его как единственную дату
+        # Если указан date_time, используем его как единственную дату
         if date_time and not isinstance(date_time, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="dateTime must be a valid date in format YYYY-MM-DD"
+                detail="date_time must be a valid date in format YYYY-MM-DD"
             )
 
         if from_date and not isinstance(from_date, datetime.date):
@@ -328,8 +428,7 @@ def get_meals_by_date(
         )
 
 
-# В web.py
-@food_dairy_routes.delete("/", response={
+@user_routers.delete("", response={
     200: DeleteMealSuccessResponse,
     400: ValidationErrorResponse,
     403: ErrorResponse,
@@ -351,15 +450,7 @@ def delete_meal(
             503: Database busy
             500: Internal server error
         """
-    # Валидация UUID
     try:
-        # is_valid, result = parse_uuid(meal_id)
-        # if not is_valid:
-        #     return 400, ValidationErrorResponse(
-        #         error="Validation error",
-        #         detail=f"Invalid meal ID: {result}"
-        #     )
-
         patient = _get_patient_profile(request)
 
         MealService.delete_meal(
@@ -393,119 +484,6 @@ def delete_meal(
         import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in delete_meal: {e}", exc_info=True)
-
-        return 500, ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred"
-        )
-
-
-@food_dairy_routes.get("/history/", response={
-    200: GetMealsSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    500: ErrorResponse,
-})
-def get_history_by_date_and_meal_name(
-        request: HttpRequest,
-        date_time: Optional[datetime.date] = Query(None, alias="dateTime"),
-        from_date: Optional[datetime.date] = Query(None),
-        to_date: Optional[datetime.date] = Query(None),
-        meal_type: Optional[str] = Query(alias="mealType"),
-):
-    """
-    Получить историю приемов пищи с фильтрацией по дате и типу приема
-
-    Параметры фильтрации:
-    - dateTime: конкретная дата (YYYY-MM-DD) - приоритетнее from_date/to_date
-    - from_date: начало периода (YYYY-MM-DD)
-    - to_date: конец периода (YYYY-MM-DD)
-    - mealType: тип приема пищи (breakfast/lunch/dinner/snack)
-
-    Примеры:
-    - /api/app/v1/foodDairy/history/?dateTime=2026-02-13&mealType=breakfast
-    - /api/app/v1/foodDairy/history/?from_date=2026-02-01&to_date=2026-02-13&mealType=lunch
-    - /api/app/v1/foodDairy/history/?mealType=dinner  (все приемы типа dinner)
-
-    Returns:
-        200: Meals found (может быть пустой список)
-        400: Invalid date format or meal type
-        403: Permission denied
-        500: Internal server error
-    """
-    try:
-        patient = _get_patient_profile(request)
-
-        # Валидация meal_type если указан
-        valid_meal_types = ['breakfast', 'lunch', 'dinner', 'snack']
-        if meal_type and meal_type not in valid_meal_types:
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail=f"Invalid meal_type. Must be one of: {', '.join(valid_meal_types)}"
-            )
-
-        # Если указан dateTime, используем его как единственную дату
-        if date_time and not isinstance(date_time, datetime.date):
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail="dateTime must be a valid date in format YYYY-MM-DD"
-            )
-
-        if from_date and not isinstance(from_date, datetime.date):
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail="from_date must be a valid date in format YYYY-MM-DD"
-            )
-
-        if to_date and not isinstance(to_date, datetime.date):
-            return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail="to_date must be a valid date in format YYYY-MM-DD"
-            )
-        # Определяем диапазон дат
-        if date_time:
-            from_date = date_time
-            to_date = date_time
-
-        # Получаем meals с фильтрацией по дате и типу
-        meals = MealService.get_meals_by_date_range_and_type(
-            patient=patient,
-            from_date=from_date,
-            to_date=to_date,
-            meal_type=meal_type
-        )
-
-        # Формируем фильтры для ответа
-        filters = {}
-        if date_time:
-            filters["date"] = str(date_time)
-        else:
-            if from_date:
-                filters["from"] = str(from_date)
-            if to_date:
-                filters["to"] = str(to_date)
-        if meal_type:
-            filters["meal_type"] = meal_type
-
-        meals_list = list(meals)
-        response_data = MealsResponse(components=meals_list)
-
-        return 200, GetMealsSuccessResponse(
-            success=True,
-            data=response_data,
-            count=len(meals_list),
-            filters=filters if filters else None
-        )
-
-    except PermissionError:
-        return 403, ErrorResponse(
-            error="Permission denied",
-            detail="You don't have permission to view meals"
-        )
-    except Exception as e:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.error(f"Unexpected error in get_history: {e}", exc_info=True)
 
         return 500, ErrorResponse(
             error="Internal server error",

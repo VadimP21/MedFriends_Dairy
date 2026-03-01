@@ -1,6 +1,5 @@
-# core/api.py
 from ninja import NinjaAPI
-from apps.food_diary.web import food_dairy_routes
+from apps.food_diary.web import user_routers
 
 # Создаем главное API
 api = NinjaAPI(
@@ -10,7 +9,7 @@ api = NinjaAPI(
 )
 
 # Подключаем роуты
-api.add_router("/foodDairy", food_dairy_routes)  # /api/app/vq/food/*
+api.add_router("food_diary/", user_routers)  # /api/app/v1/food_diary/*
 
 # Для тестирования добавим простой эндпоинт
 @api.get("/health")

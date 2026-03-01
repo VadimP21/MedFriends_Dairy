@@ -1,9 +1,9 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from core.mixins import UUIDModel, TimeStampedModel
+from core.mixins import MfBaseModel
 
 
-class User(AbstractUser, UUIDModel, TimeStampedModel):
+class User(AbstractUser, MfBaseModel):
     """Кастомная модель пользователя"""
 
     email = models.EmailField(unique=True)
@@ -21,7 +21,7 @@ class User(AbstractUser, UUIDModel, TimeStampedModel):
         return self.email
 
 
-class PatientProfile(UUIDModel, TimeStampedModel):
+class PatientProfile(MfBaseModel):
     """Профиль пациента"""
 
     user = models.OneToOneField(

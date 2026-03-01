@@ -1,61 +1,59 @@
-# apps/food/models.py
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
-from core.mixins import UUIDModel, TimeStampedModel
+from django.utils.translation import gettext_lazy as _
+
+from core.mixins import MfBaseModel
 from apps.accounts.models import PatientProfile
 
 
-class Dish(UUIDModel, TimeStampedModel):
+class Dish(MfBaseModel):
     """Модель конкретной порции продукта в приеме пищи"""
 
-    name = models.CharField(max_length=200, verbose_name="Название продукта")
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("Название продукта")
+    )
 
     weight = models.PositiveIntegerField(
-        verbose_name="Вес (в граммах)",
+        verbose_name=_("Вес (в граммах)"),
         validators=[MinValueValidator(1)],
-        help_text="Вес продукта в граммах",
+        help_text=_("Вес продукта в граммах"),
     )
 
     calories = models.PositiveIntegerField(
-        verbose_name="Калории (ккал)",
-        help_text="Количество калорий в указанном весе",
+        verbose_name=_("Калории (ккал)"),
+        help_text=_("Количество калорий в указанном весе"),
         validators=[MinValueValidator(0)],
     )
+
     protein = models.FloatField(
-        verbose_name="Белки (г)",
-        help_text="Количество белков в указанном весе",
-        validators=[MinValueValidator(0.0)],
-    )
-    fat = models.FloatField(
-        verbose_name="Жиры (г)",
-        help_text="Количество жиров в указанном весе",
-        validators=[MinValueValidator(0.0)],
-    )
-    carbohydrates = models.FloatField(
-        verbose_name="Углеводы (г)",
-        help_text="Количество углеводов в указанном весе",
+        verbose_name=_("Белки (г)"),
+        help_text=_("Количество белков в указанном весе"),
         validators=[MinValueValidator(0.0)],
     )
 
-    score = models.FloatField(
-        verbose_name="Индекс «здорового питания»",
-        help_text="Оценка того, насколько продукт полезен для организма",
-        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
+    fat = models.FloatField(
+        verbose_name=_("Жиры (г)"),
+        help_text=_("Количество жиров в указанном весе"),
+        validators=[MinValueValidator(0.0)],
     )
-    description = models.TextField(
-        verbose_name="Описание продукта", blank=True, null=True
+
+    carbohydrates = models.FloatField(
+        verbose_name=_("Углеводы (г)"),
+        help_text=_("Количество углеводов в указанном весе"),
+        validators=[MinValueValidator(0.0)],
     )
 
     meal = models.ForeignKey(
         "Meal",
         on_delete=models.CASCADE,
         related_name="components",
-        verbose_name="Прием пищи",
+        verbose_name=_("Прием пищи"),
     )
 
     class Meta:
-        verbose_name = "Продукт"
-        verbose_name_plural = "Продукты"
+        verbose_name = _("Продукт")
+        verbose_name_plural = _("Продукты")
 
     def __str__(self):
         return f"{self.name} ({self.weight}g)"
@@ -70,60 +68,51 @@ class Dish(UUIDModel, TimeStampedModel):
         return False
 
 
-class Meal(UUIDModel, TimeStampedModel):
+class Meal(MfBaseModel):
     """Прием пищи из нескольких блюд"""
 
-    MEAL_TYPES = [
-        ('breakfast', 'Завтрак'),
-        ('lunch', 'Обед'),
-        ('dinner', 'Ужин'),
-        ('snack', 'Перекус'),
-    ]
+    class MealTypes(models.TextChoices):
+        BREAKFAST = 'завтрак', 'завтрак'
+        LUNCH = 'обед', 'обед'
+        DINNER = 'ужин', 'ужин'
+        SNACK = 'перекус', 'перекус'
+
+    # MEAL_TYPE_VALUES = [choice[0] for choice in MealTypes.choices]
 
     patient = models.ForeignKey(
         PatientProfile,
         on_delete=models.CASCADE,
         related_name="meals",
-        verbose_name="Пациент",
+        verbose_name=_("Пациент"),
     )
+
     name = models.CharField(
         max_length=20,
-        choices=MEAL_TYPES,
-        blank=True,
-        verbose_name="Тип приема пищи",
-        help_text="Завтрак, Обед, Ужин, Перекус/другое", )
+        choices=MealTypes.choices,
+        verbose_name=_("Тип приема пищи"),
+        help_text=_("Завтрак, Обед, Ужин, Перекус"),
+    )
 
     meal_date = models.DateField(
-        verbose_name="Дата приема пищи",
-        help_text="Дата, когда был прием пищи",
+        verbose_name=_("Дата приема пищи"),
+        help_text=_("Дата, когда был прием пищи"),
     )
+
     meal_time = models.TimeField(
-        verbose_name="Время приема пищи",
-        help_text="Время приема пищи",
-    )
-
-    portion_size = models.TextField(
-        verbose_name="Размер порции",
-        help_text="Текстовое описание размера порции",
-    )
-
-    description = models.CharField(
-        max_length=200,
-        verbose_name="Описание",
-        blank=True,
-        null=True
+        verbose_name=_("Время приема пищи"),
+        help_text=_("Время приема пищи"),
     )
 
     class Meta:
-        verbose_name = "Прием пищи"
-        verbose_name_plural = "Приемы пищи"
+        verbose_name = _("Прием пищи")
+        verbose_name_plural = _("Приемы пищи")
         ordering = ['-meal_date', '-meal_time']
         indexes = [
             models.Index(fields=['patient', 'meal_date']),
         ]
 
     def __str__(self):
-        return f"{self.get_meal_type_display()} - {self.meal_date}"
+        return f"{self.get_name_display()} - {self.meal_date}"
 
     @property
     def total_weight(self):
@@ -145,35 +134,30 @@ class Meal(UUIDModel, TimeStampedModel):
     def total_carbohydrates(self):
         return sum(component.carbohydrates for component in self.components.all())
 
-    @property
-    def avg_score(self):
-        components = self.components.all()
-        if not components:
-            return 0.0
-        return sum(c.score for c in components) / components.count()
 
-
-class MealTimeSlot(UUIDModel, TimeStampedModel):
+class MealTimeSlot(MfBaseModel):
     """Интервалы времени для типов приемов пищи"""
 
     title = models.CharField(
         max_length=20,
-        choices=Meal.MEAL_TYPES,
+        choices=Meal.MealTypes,
         unique=True,
-        verbose_name="Тип приема пищи"
+        verbose_name=_("Тип приема пищи")
     )
+
     start_hour = models.PositiveSmallIntegerField(
-        "Час начала (0-23)",
+        _("Час начала (0-23)"),
         validators=[MinValueValidator(0), MaxValueValidator(23)]
     )
+
     end_hour = models.PositiveSmallIntegerField(
-        "Час окончания (0-23)",
+        _("Час окончания (0-23)"),
         validators=[MinValueValidator(0), MaxValueValidator(23)]
     )
 
     class Meta:
-        verbose_name = "Интервал приема пищи"
-        verbose_name_plural = "Интервалы приема пищи"
+        verbose_name = _("Интервал приема пищи")
+        verbose_name_plural = _("Интервалы приема пищи")
         ordering = ["start_hour"]
 
     def __str__(self):

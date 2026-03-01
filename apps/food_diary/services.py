@@ -9,6 +9,8 @@ from apps.food_diary.utils import get_meal_name_by_time
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+
 
 class MealService:
     """Сервис для работы с приемами пищи"""
@@ -29,14 +31,14 @@ class MealService:
                     name=payload.name or get_meal_name_by_time(payload.meal_time),
                     meal_date=payload.meal_date,
                     meal_time=payload.meal_time,
-                    portion_size=payload.portion_size,
-                    description=payload.description
                 )
-
+                now = timezone.now()
                 dishes = [
                     Dish(
                         **dish.model_dump(),
-                        meal=meal
+                        meal=meal,
+                        created_at=now,  # добавляем явно
+                        updated_at=now
                     )
                     for dish in payload.components
                 ]
@@ -47,7 +49,6 @@ class MealService:
             if 'unique constraint' in str(e).lower():
                 raise ValidationError("A meal with these parameters already exists")
             raise
-
 
     @staticmethod
     def update_meal(
@@ -160,7 +161,6 @@ class MealService:
             patient=patient,
             meal_date=target_date
         ).prefetch_related('components').order_by('meal_time')
-
 
     @staticmethod
     def get_meals_by_date_range(

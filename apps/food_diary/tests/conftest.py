@@ -7,8 +7,11 @@ from typing import Dict, Any
 
 from apps.food_diary.models import MealTimeSlot
 from apps.food_diary.tests.factories import (
-    UserFactory, PatientProfileFactory,
-    MealFactory, DishFactory, MealTimeSlotFactory
+    UserFactory,
+    PatientProfileFactory,
+    MealFactory,
+    DishFactory,
+    MealTimeSlotFactory,
 )
 
 
@@ -54,10 +57,10 @@ def auth_client(patient_user):
 @pytest.fixture
 def meal_time_slots():
     """Создать временные слоты"""
-    MealTimeSlotFactory(title='breakfast', start_hour=6, end_hour=11)
-    MealTimeSlotFactory(title='lunch', start_hour=11, end_hour=16)
-    MealTimeSlotFactory(title='dinner', start_hour=16, end_hour=22)
-    MealTimeSlotFactory(title='snack', start_hour=0, end_hour=24)
+    MealTimeSlotFactory(title="breakfast", start_hour=6, end_hour=11)
+    MealTimeSlotFactory(title="lunch", start_hour=11, end_hour=16)
+    MealTimeSlotFactory(title="dinner", start_hour=16, end_hour=22)
+    MealTimeSlotFactory(title="snack", start_hour=0, end_hour=24)
     return MealTimeSlot.objects.all()
 
 
@@ -74,11 +77,7 @@ def meals(patient):
     for i in range(5):
         days_ago = i
         meal_date = datetime.date.today() - datetime.timedelta(days=days_ago)
-        meal = MealFactory(
-            patient=patient,
-            meal_date=meal_date,
-            with_dishes=2
-        )
+        meal = MealFactory(patient=patient, meal_date=meal_date, with_dishes=2)
         meals.append(meal)
     return meals
 
@@ -101,7 +100,7 @@ def meal_data():
                 "fat": 25,
                 "carbohydrates": 5,
                 "score": 0.8,
-                "description": "Омлет из 3 яиц"
+                "description": "Омлет из 3 яиц",
             },
             {
                 "name": "Тост",
@@ -111,7 +110,7 @@ def meal_data():
                 "fat": 5,
                 "carbohydrates": 20,
                 "score": 0.7,
-                "description": "Тост с маслом"
-            }
-        ]
+                "description": "Тост с маслом",
+            },
+        ],
     }

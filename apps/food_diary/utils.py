@@ -17,7 +17,7 @@ def get_meal_name_by_time(timestamp: time) -> str:
 
     if slots is None:
         # Если в кэше нет, берем из БД и сохраняем в кэш на 24 часа
-        slots = list(MealTimeSlot.objects.all().order_by('start_hour'))
+        slots = list(MealTimeSlot.objects.all().order_by("start_hour"))
         cache.set("meal_time_slots", slots, 60 * 60 * 24)  # 24 часа
 
     hour = timestamp.hour

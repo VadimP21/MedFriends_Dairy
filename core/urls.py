@@ -5,8 +5,8 @@ from django.conf.urls.static import static
 from .api import api
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/app/v1/', api.urls),  # Все API доступны по /api/app/v1/
+    path("admin/", admin.site.urls),
+    path("api/app/v1/", api.urls),  # Все API доступны по /api/app/v1/
 ]
 
 if settings.DEBUG:

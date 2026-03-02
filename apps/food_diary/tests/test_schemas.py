@@ -5,9 +5,13 @@ import uuid
 from pydantic import ValidationError
 
 from apps.food_diary.schemas import (
-    DishCreateIn, DishOut,
-    MealCreateIn, MealUpdateIn, MealOut, MealListOut,
-    DailySummaryOut
+    DishCreateIn,
+    DishOut,
+    MealCreateIn,
+    MealUpdateIn,
+    MealOut,
+    MealListOut,
+    DailySummaryOut,
 )
 
 
@@ -24,7 +28,7 @@ class TestDishSchemas:
             "fat": 25,
             "carbohydrates": 5,
             "score": 0.8,
-            "description": "Тестовое описание"
+            "description": "Тестовое описание",
         }
 
         dish = DishCreateIn(**data)
@@ -40,7 +44,7 @@ class TestDishSchemas:
             "protein": 20,
             "fat": 25,
             "carbohydrates": 5,
-            "score": 0.8
+            "score": 0.8,
         }
 
         with pytest.raises(ValidationError) as exc:
@@ -56,7 +60,7 @@ class TestDishSchemas:
             "protein": 20,
             "fat": 25,
             "carbohydrates": 5,
-            "score": 1.5  # > 1.0
+            "score": 1.5,  # > 1.0
         }
 
         with pytest.raises(ValidationError) as exc:
@@ -66,6 +70,7 @@ class TestDishSchemas:
     def test_dish_out_serialization(self, meal):
         """Тест сериализации DishOut"""
         from apps.food_diary.models import Dish
+
         dish = Dish.objects.create(
             meal=meal,
             name="Омлет",
@@ -74,7 +79,7 @@ class TestDishSchemas:
             protein=20,
             fat=25,
             carbohydrates=5,
-            score=0.8
+            score=0.8,
         )
 
         dish_out = DishOut.from_orm(dish)
@@ -112,11 +117,7 @@ class TestMealSchemas:
 
     def test_meal_update_in_valid(self):
         """Тест валидных данных для обновления"""
-        data = {
-            "id": str(uuid.uuid4()),
-            "meal_type": "lunch",
-            "name": "Обед"
-        }
+        data = {"id": str(uuid.uuid4()), "meal_type": "lunch", "name": "Обед"}
 
         meal = MealUpdateIn(**data)
         assert meal.meal_type == "lunch"
@@ -155,8 +156,8 @@ class TestDailySummarySchema:
             "by_meal_type": {
                 "breakfast": {"count": 1, "calories": 400},
                 "lunch": {"count": 1, "calories": 500},
-                "dinner": {"count": 1, "calories": 300}
-            }
+                "dinner": {"count": 1, "calories": 300},
+            },
         }
 
         summary = DailySummaryOut(**data)

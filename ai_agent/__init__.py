@@ -15,26 +15,20 @@ from .food_analysis_service import food_analysis_service, FoodAnalysisService
 __all__ = [
     # Базовые классы
     "BaseLLMClient",
-
     # Конкретные клиенты
     "DeepSeekLLMClient",
     "OpenAILLMClient",
-
     # Фабрика
     "LLMClientFactory",
     "LLMProvider",
-
     # Синглтон-клиент
     "llm_client",
     "LLMClient",
-
     # Сервис
     "llm_service",
     "LLMService",
-
     # Настройки
     "llm_settings",
-
     "food_analysis_service",
-    "FoodAnalysisService"
+    "FoodAnalysisService",
 ]

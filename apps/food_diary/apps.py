@@ -2,4 +2,4 @@ from django.apps import AppConfig
 
 
 class FoodDiaryConfig(AppConfig):
-    name = 'apps.food_diary'
+    name = "apps.food_diary"

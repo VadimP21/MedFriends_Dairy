@@ -13,10 +13,10 @@ class TestMealModel:
         """Тест создания приема пищи"""
         meal = Meal.objects.create(
             patient=patient,
-            name='breakfast',
+            name="breakfast",
             meal_date=datetime.date.today(),
             meal_time=datetime.time(8, 30),
-            portion_size='Стандартная'
+            portion_size="Стандартная",
         )
 
         assert meal.id is not None
@@ -28,24 +28,24 @@ class TestMealModel:
         # Создаем блюда
         Dish.objects.create(
             meal=meal,
-            name='Омлет',
+            name="Омлет",
             weight=200,
             calories=350,
             protein=20,
             fat=25,
             carbohydrates=5,
-            score=0.8
+            score=0.8,
         )
 
         Dish.objects.create(
             meal=meal,
-            name='Тост',
+            name="Тост",
             weight=50,
             calories=150,
             protein=5,
             fat=5,
             carbohydrates=20,
-            score=0.7
+            score=0.7,
         )
 
         # Обновляем meal из БД
@@ -65,18 +65,18 @@ class TestMealModel:
 
         meal1 = Meal.objects.create(
             patient=patient,
-            name='breakfast',
+            name="breakfast",
             meal_date=today,
             meal_time=datetime.time(9, 0),
-            portion_size='Стандартная'
+            portion_size="Стандартная",
         )
 
         meal2 = Meal.objects.create(
             patient=patient,
-            name='lunch',
+            name="lunch",
             meal_date=yesterday,
             meal_time=datetime.time(13, 0),
-            portion_size='Стандартная'
+            portion_size="Стандартная",
         )
 
         meals = Meal.objects.filter(patient=patient)
@@ -92,13 +92,13 @@ class TestDishModel:
         """Тест создания блюда"""
         dish = Dish.objects.create(
             meal=meal,
-            name='Омлет',
+            name="Омлет",
             weight=200,
             calories=350,
             protein=20,
             fat=25,
             carbohydrates=5,
-            score=0.8
+            score=0.8,
         )
 
         assert dish.id is not None
@@ -112,7 +112,7 @@ class TestDishModel:
             protein=20,  # 20*4 = 80
             carbohydrates=5,  # 5*4 = 20
             fat=25,  # 25*9 = 225
-            calories=300  # 80+20+225 = 325 (ошибка 25/300=8.3% < 30%)
+            calories=300,  # 80+20+225 = 325 (ошибка 25/300=8.3% < 30%)
         )
         assert dish1.checking_correctness_of_calories() is True
 
@@ -121,7 +121,7 @@ class TestDishModel:
             protein=20,
             carbohydrates=5,
             fat=25,
-            calories=500  # Должно быть ~325, ошибка 175/500=35% > 30%
+            calories=500,  # Должно быть ~325, ошибка 175/500=35% > 30%
         )
         assert dish2.checking_correctness_of_calories() is False
 
@@ -132,11 +132,7 @@ class TestMealTimeSlotModel:
 
     def test_create_slot(self):
         """Тест создания временного слота"""
-        slot = MealTimeSlot.objects.create(
-            title='breakfast',
-            start_hour=6,
-            end_hour=11
-        )
+        slot = MealTimeSlot.objects.create(title="breakfast", start_hour=6, end_hour=11)
 
         assert slot.id is not None
         assert str(slot) == "Завтрак: 6:00 - 11:00"

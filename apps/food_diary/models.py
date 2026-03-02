@@ -9,10 +9,7 @@ from apps.accounts.models import PatientProfile
 class Dish(MfBaseModel):
     """Модель конкретной порции продукта в приеме пищи"""
 
-    name = models.CharField(
-        max_length=200,
-        verbose_name=_("Название продукта")
-    )
+    name = models.CharField(max_length=200, verbose_name=_("Название продукта"))
 
     weight = models.PositiveIntegerField(
         verbose_name=_("Вес (в граммах)"),
@@ -61,7 +58,7 @@ class Dish(MfBaseModel):
     def checking_correctness_of_calories(self) -> bool:
         """Проверка корректности калорий"""
         estimated_calories = (
-                (self.protein * 4) + (self.carbohydrates * 4) + (self.fat * 9)
+            (self.protein * 4) + (self.carbohydrates * 4) + (self.fat * 9)
         )
         if abs(self.calories - estimated_calories) > self.calories * 0.3:
             return True
@@ -72,10 +69,10 @@ class Meal(MfBaseModel):
     """Прием пищи из нескольких блюд"""
 
     class MealTypes(models.TextChoices):
-        BREAKFAST = 'завтрак', 'завтрак'
-        LUNCH = 'обед', 'обед'
-        DINNER = 'ужин', 'ужин'
-        SNACK = 'перекус', 'перекус'
+        BREAKFAST = "завтрак", "завтрак"
+        LUNCH = "обед", "обед"
+        DINNER = "ужин", "ужин"
+        SNACK = "перекус", "перекус"
 
     # MEAL_TYPE_VALUES = [choice[0] for choice in MealTypes.choices]
 
@@ -106,9 +103,9 @@ class Meal(MfBaseModel):
     class Meta:
         verbose_name = _("Прием пищи")
         verbose_name_plural = _("Приемы пищи")
-        ordering = ['-meal_date', '-meal_time']
+        ordering = ["-meal_date", "-meal_time"]
         indexes = [
-            models.Index(fields=['patient', 'meal_date']),
+            models.Index(fields=["patient", "meal_date"]),
         ]
 
     def __str__(self):
@@ -142,17 +139,16 @@ class MealTimeSlot(MfBaseModel):
         max_length=20,
         choices=Meal.MealTypes,
         unique=True,
-        verbose_name=_("Тип приема пищи")
+        verbose_name=_("Тип приема пищи"),
     )
 
     start_hour = models.PositiveSmallIntegerField(
-        _("Час начала (0-23)"),
-        validators=[MinValueValidator(0), MaxValueValidator(23)]
+        _("Час начала (0-23)"), validators=[MinValueValidator(0), MaxValueValidator(23)]
     )
 
     end_hour = models.PositiveSmallIntegerField(
         _("Час окончания (0-23)"),
-        validators=[MinValueValidator(0), MaxValueValidator(23)]
+        validators=[MinValueValidator(0), MaxValueValidator(23)],
     )
 
     class Meta:

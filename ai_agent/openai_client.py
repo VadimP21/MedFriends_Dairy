@@ -18,7 +18,7 @@ class OpenAILLMClient(BaseLLMClient):
     """
     Конкретная реализация клиента для OpenAI.
     """
-    
+
     def __init__(self, api_key: Optional[str] = None, **kwargs):
         """
         Инициализация клиента OpenAI.
@@ -26,10 +26,10 @@ class OpenAILLMClient(BaseLLMClient):
         super().__init__(**kwargs)
         self.api_key = api_key or llm_settings.OPENAI_API_KEY
         self.base_url = kwargs.get("base_url", llm_settings.OPENAI_URL)
-        
+
         if not self.api_key:
             raise ValueError("API ключ OpenAI не предоставлен")
-    
+
     def get_chat_model(self, **kwargs) -> BaseChatModel:
         """
         Возвращает чат-модель OpenAI.
@@ -42,26 +42,25 @@ class OpenAILLMClient(BaseLLMClient):
             "api_key": self.api_key,
             "base_url": self.base_url,
             **self._model_kwargs,
-            **kwargs
+            **kwargs,
         }
-        
+
         return ChatOpenAI(**model_kwargs)
-    
+
     async def ainvoke(self, messages: list[BaseMessage], **kwargs) -> str:
         """
         Асинхронный вызов OpenAI.
         """
         chat_model = self.get_chat_model(**kwargs)
         response = await chat_model.ainvoke(messages)
-        
+
         logger.debug("OpenAI response received")
         return response.content
-    
+
     def get_embeddings(self, **kwargs) -> Optional[Embeddings]:
         """
         Возвращает модель эмбеддингов OpenAI.
         """
         return OpenAIEmbeddings(
-            api_key=self.api_key,
-            model=kwargs.get("model", "text-embedding-ada-002")
+            api_key=self.api_key, model=kwargs.get("model", "text-embedding-ada-002")
         )

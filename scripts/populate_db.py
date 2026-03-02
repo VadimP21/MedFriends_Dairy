@@ -8,7 +8,7 @@ from datetime import date, time, timedelta
 
 # Настраиваем Django
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 django.setup()
 
 from apps.accounts.models import User, PatientProfile
@@ -22,10 +22,7 @@ def create_users():
     # Создаем пользователя
     user, created = User.objects.get_or_create(
         email="patient@test.com",
-        defaults={
-            "username": "test_patient",
-            "is_patient": True
-        }
+        defaults={"username": "test_patient", "is_patient": True},
     )
     if created:
         user.set_password("testpass123")
@@ -42,9 +39,9 @@ def create_users():
             "personal_info": {
                 "first_name": "Тест",
                 "last_name": "Пациентов",
-                "gender": "male"
-            }
-        }
+                "gender": "male",
+            },
+        },
     )
     if created:
         print(f"  Создан профиль пациента: {patient.id}")
@@ -68,8 +65,8 @@ def create_meal_time_slots():
             title=slot_data["title"],
             defaults={
                 "start_hour": slot_data["start_hour"],
-                "end_hour": slot_data["end_hour"]
-            }
+                "end_hour": slot_data["end_hour"],
+            },
         )
         if created:
             print(f"  Создан слот: {slot.get_title_display()}")
@@ -88,7 +85,7 @@ def create_sample_dishes():
             "fat": 25,
             "carbohydrates": 5,
             "score": 0.8,
-            "description": "Омлет из 3 яиц с сыром"
+            "description": "Омлет из 3 яиц с сыром",
         },
         {
             "name": "Гречка с курицей",
@@ -98,7 +95,7 @@ def create_sample_dishes():
             "fat": 10,
             "carbohydrates": 45,
             "score": 0.9,
-            "description": "Гречка отварная с куриным филе"
+            "description": "Гречка отварная с куриным филе",
         },
         {
             "name": "Салат Цезарь",
@@ -108,7 +105,7 @@ def create_sample_dishes():
             "fat": 35,
             "carbohydrates": 15,
             "score": 0.6,
-            "description": "Салат с курицей и соусом"
+            "description": "Салат с курицей и соусом",
         },
         {
             "name": "Яблоко",
@@ -118,7 +115,7 @@ def create_sample_dishes():
             "fat": 0.3,
             "carbohydrates": 20,
             "score": 1.0,
-            "description": "Свежее яблоко"
+            "description": "Свежее яблоко",
         },
         {
             "name": "Йогурт",
@@ -128,8 +125,8 @@ def create_sample_dishes():
             "fat": 3,
             "carbohydrates": 18,
             "score": 0.9,
-            "description": "Натуральный йогурт"
-        }
+            "description": "Натуральный йогурт",
+        },
     ]
 
 
@@ -138,7 +135,7 @@ def create_meals(patient, days_back=7):
     print(f"\nСоздаем приемы пищи за последние {days_back} дней...")
 
     dishes_data = create_sample_dishes()
-    meal_types = ['breakfast', 'lunch', 'dinner', 'snack']
+    meal_types = ["breakfast", "lunch", "dinner", "snack"]
 
     meals_created = 0
 
@@ -151,11 +148,11 @@ def create_meals(patient, days_back=7):
 
         for meal_type in selected_types:
             # Случайное время
-            if meal_type == 'breakfast':
+            if meal_type == "breakfast":
                 hour = random.randint(7, 9)
-            elif meal_type == 'lunch':
+            elif meal_type == "lunch":
                 hour = random.randint(12, 14)
-            elif meal_type == 'dinner':
+            elif meal_type == "dinner":
                 hour = random.randint(18, 20)
             else:  # snack
                 hour = random.randint(10, 22)
@@ -170,7 +167,7 @@ def create_meals(patient, days_back=7):
                 meal_date=current_date,
                 meal_time=meal_time,
                 portion_size="Стандартная",
-                description=f"Прием пищи от {current_date}"
+                description=f"Прием пищи от {current_date}",
             )
 
             # Добавляем 1-3 блюда
@@ -186,9 +183,16 @@ def create_meals(patient, days_back=7):
                     calories=dish_data["calories"] + random.randint(-20, 20),
                     protein=dish_data["protein"] + round(random.uniform(-2, 2), 1),
                     fat=dish_data["fat"] + round(random.uniform(-2, 2), 1),
-                    carbohydrates=dish_data["carbohydrates"] + round(random.uniform(-2, 2), 1),
-                    score=min(1.0, max(0.0, dish_data["score"] + round(random.uniform(-0.1, 0.1), 2))),
-                    description=dish_data["description"]
+                    carbohydrates=dish_data["carbohydrates"]
+                    + round(random.uniform(-2, 2), 1),
+                    score=min(
+                        1.0,
+                        max(
+                            0.0,
+                            dish_data["score"] + round(random.uniform(-0.1, 0.1), 2),
+                        ),
+                    ),
+                    description=dish_data["description"],
                 )
 
             meals_created += 1

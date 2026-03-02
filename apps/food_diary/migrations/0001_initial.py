@@ -11,64 +11,217 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('accounts', '0001_initial'),
+        ("accounts", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='MealTimeSlot',
+            name="MealTimeSlot",
             fields=[
-                ('created_at', models.DateTimeField(auto_now=True, verbose_name='Дата создания')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('title', models.CharField(choices=[('завтрак', 'завтрак'), ('обед', 'обед'), ('ужин', 'ужин'), ('перекус', 'перекус')], max_length=20, unique=True, verbose_name='Тип приема пищи')),
-                ('start_hour', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(23)], verbose_name='Час начала (0-23)')),
-                ('end_hour', models.PositiveSmallIntegerField(validators=[django.core.validators.MinValueValidator(0), django.core.validators.MaxValueValidator(23)], verbose_name='Час окончания (0-23)')),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Дата создания"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Дата обновления"),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        choices=[
+                            ("завтрак", "завтрак"),
+                            ("обед", "обед"),
+                            ("ужин", "ужин"),
+                            ("перекус", "перекус"),
+                        ],
+                        max_length=20,
+                        unique=True,
+                        verbose_name="Тип приема пищи",
+                    ),
+                ),
+                (
+                    "start_hour",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(23),
+                        ],
+                        verbose_name="Час начала (0-23)",
+                    ),
+                ),
+                (
+                    "end_hour",
+                    models.PositiveSmallIntegerField(
+                        validators=[
+                            django.core.validators.MinValueValidator(0),
+                            django.core.validators.MaxValueValidator(23),
+                        ],
+                        verbose_name="Час окончания (0-23)",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Интервал приема пищи',
-                'verbose_name_plural': 'Интервалы приема пищи',
-                'ordering': ['start_hour'],
+                "verbose_name": "Интервал приема пищи",
+                "verbose_name_plural": "Интервалы приема пищи",
+                "ordering": ["start_hour"],
             },
         ),
         migrations.CreateModel(
-            name='Meal',
+            name="Meal",
             fields=[
-                ('created_at', models.DateTimeField(auto_now=True, verbose_name='Дата создания')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(choices=[('завтрак', 'завтрак'), ('обед', 'обед'), ('ужин', 'ужин'), ('перекус', 'перекус')], help_text='Завтрак, Обед, Ужин, Перекус', max_length=20, verbose_name='Тип приема пищи')),
-                ('meal_date', models.DateField(help_text='Дата, когда был прием пищи', verbose_name='Дата приема пищи')),
-                ('meal_time', models.TimeField(help_text='Время приема пищи', verbose_name='Время приема пищи')),
-                ('patient', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='meals', to='accounts.patientprofile', verbose_name='Пациент')),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Дата создания"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Дата обновления"),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        choices=[
+                            ("завтрак", "завтрак"),
+                            ("обед", "обед"),
+                            ("ужин", "ужин"),
+                            ("перекус", "перекус"),
+                        ],
+                        help_text="Завтрак, Обед, Ужин, Перекус",
+                        max_length=20,
+                        verbose_name="Тип приема пищи",
+                    ),
+                ),
+                (
+                    "meal_date",
+                    models.DateField(
+                        help_text="Дата, когда был прием пищи",
+                        verbose_name="Дата приема пищи",
+                    ),
+                ),
+                (
+                    "meal_time",
+                    models.TimeField(
+                        help_text="Время приема пищи", verbose_name="Время приема пищи"
+                    ),
+                ),
+                (
+                    "patient",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="meals",
+                        to="accounts.patientprofile",
+                        verbose_name="Пациент",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Прием пищи',
-                'verbose_name_plural': 'Приемы пищи',
-                'ordering': ['-meal_date', '-meal_time'],
+                "verbose_name": "Прием пищи",
+                "verbose_name_plural": "Приемы пищи",
+                "ordering": ["-meal_date", "-meal_time"],
             },
         ),
         migrations.CreateModel(
-            name='Dish',
+            name="Dish",
             fields=[
-                ('created_at', models.DateTimeField(auto_now=True, verbose_name='Дата создания')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='Дата обновления')),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=200, verbose_name='Название продукта')),
-                ('weight', models.PositiveIntegerField(help_text='Вес продукта в граммах', validators=[django.core.validators.MinValueValidator(1)], verbose_name='Вес (в граммах)')),
-                ('calories', models.PositiveIntegerField(help_text='Количество калорий в указанном весе', validators=[django.core.validators.MinValueValidator(0)], verbose_name='Калории (ккал)')),
-                ('protein', models.FloatField(help_text='Количество белков в указанном весе', validators=[django.core.validators.MinValueValidator(0.0)], verbose_name='Белки (г)')),
-                ('fat', models.FloatField(help_text='Количество жиров в указанном весе', validators=[django.core.validators.MinValueValidator(0.0)], verbose_name='Жиры (г)')),
-                ('carbohydrates', models.FloatField(help_text='Количество углеводов в указанном весе', validators=[django.core.validators.MinValueValidator(0.0)], verbose_name='Углеводы (г)')),
-                ('meal', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='components', to='food_diary.meal', verbose_name='Прием пищи')),
+                (
+                    "created_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Дата создания"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="Дата обновления"),
+                ),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(max_length=200, verbose_name="Название продукта"),
+                ),
+                (
+                    "weight",
+                    models.PositiveIntegerField(
+                        help_text="Вес продукта в граммах",
+                        validators=[django.core.validators.MinValueValidator(1)],
+                        verbose_name="Вес (в граммах)",
+                    ),
+                ),
+                (
+                    "calories",
+                    models.PositiveIntegerField(
+                        help_text="Количество калорий в указанном весе",
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="Калории (ккал)",
+                    ),
+                ),
+                (
+                    "protein",
+                    models.FloatField(
+                        help_text="Количество белков в указанном весе",
+                        validators=[django.core.validators.MinValueValidator(0.0)],
+                        verbose_name="Белки (г)",
+                    ),
+                ),
+                (
+                    "fat",
+                    models.FloatField(
+                        help_text="Количество жиров в указанном весе",
+                        validators=[django.core.validators.MinValueValidator(0.0)],
+                        verbose_name="Жиры (г)",
+                    ),
+                ),
+                (
+                    "carbohydrates",
+                    models.FloatField(
+                        help_text="Количество углеводов в указанном весе",
+                        validators=[django.core.validators.MinValueValidator(0.0)],
+                        verbose_name="Углеводы (г)",
+                    ),
+                ),
+                (
+                    "meal",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="components",
+                        to="food_diary.meal",
+                        verbose_name="Прием пищи",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Продукт',
-                'verbose_name_plural': 'Продукты',
+                "verbose_name": "Продукт",
+                "verbose_name_plural": "Продукты",
             },
         ),
         migrations.AddIndex(
-            model_name='meal',
-            index=models.Index(fields=['patient', 'meal_date'], name='food_diary__patient_e97468_idx'),
+            model_name="meal",
+            index=models.Index(
+                fields=["patient", "meal_date"], name="food_diary__patient_e97468_idx"
+            ),
         ),
     ]

@@ -1,15 +1,20 @@
 from uuid import UUID
 
-from apps.food_diary.base import CreateMealSuccessResponse, ValidationErrorResponse, ErrorResponse, \
-    UpdateMealSuccessResponse, NotFoundResponse, GetMealSuccessResponse, DeleteMealSuccessResponse, \
-    GetMealsSuccessResponse
-from apps.food_diary.models import Meal
-from apps.food_diary.schemas import (
-    MealCreateIn, MealUpdateIn, MealsResponse
+from apps.food_diary.base import (
+    CreateMealSuccessResponse,
+    ValidationErrorResponse,
+    ErrorResponse,
+    UpdateMealSuccessResponse,
+    NotFoundResponse,
+    GetMealSuccessResponse,
+    DeleteMealSuccessResponse,
+    GetMealsSuccessResponse,
 )
+from apps.food_diary.models import Meal
+from apps.food_diary.schemas import MealCreateIn, MealUpdateIn, MealsResponse
 from apps.food_diary.services import MealService
 from apps.accounts.models import PatientProfile
-from ninja import Router, Query
+from ninja import Router, Query, UploadedFile, File
 from django.http import HttpRequest, Http404
 from django.core.exceptions import ValidationError
 from django.db import OperationalError, IntegrityError
@@ -29,33 +34,31 @@ def _get_patient_profile(request: HttpRequest) -> PatientProfile:
     if not patient:
         # Если нет пациентов, создаем тестового
         from apps.accounts.models import User
+
         user = User.objects.create_user(
-            username="test_patient",
-            email="patient@test.com",
-            password="testpass123"
+            username="test_patient", email="patient@test.com", password="testpass123"
         )
         patient = PatientProfile.objects.create(
-            user=user,
-            personal_info={"first_name": "Тест", "last_name": "Пациентов"}
+            user=user, personal_info={"first_name": "Тест", "last_name": "Пациентов"}
         )
     return patient
 
 
 # СОЗДАЕМ ЗАЩИЩЕННЫЙ РОУТЕР
-user_routers = Router(tags=["Food"])
+user_routers = Router(tags=["food_fairy"])
 
 
-@user_routers.post("", response={
-    201: CreateMealSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    409: ErrorResponse,
-    500: ErrorResponse,
-})
-def create_meal(
-        request: HttpRequest,
-        payload: MealCreateIn
-):
+@user_routers.post(
+    "",
+    response={
+        201: CreateMealSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        409: ErrorResponse,
+        500: ErrorResponse,
+    },
+)
+def create_meal(request: HttpRequest, payload: MealCreateIn):
     """
     Создать новый прием пищи
 
@@ -69,58 +72,52 @@ def create_meal(
     try:
         patient = _get_patient_profile(request)
 
-        meal = MealService.create_meal(
-            patient=patient,
-            payload=payload
-        )
+        meal = MealService.create_meal(patient=patient, payload=payload)
         response_data = MealsResponse(components=[meal])
         return 201, CreateMealSuccessResponse(
-            success=True,
-            message="Meal created successfully",
-            data=response_data
+            success=True, message="Meal created successfully", data=response_data
         )
     except ValidationError as e:
         return 400, ValidationErrorResponse(
             error="Validation error",
             detail=str(e),
-            field_errors=getattr(e, 'message_dict', None)
+            field_errors=getattr(e, "message_dict", None),
         )
     except PermissionError:
         return 403, ErrorResponse(
             error="Permission denied",
-            detail="You don't have permission to create meals"
+            detail="You don't have permission to create meals",
         )
     except IntegrityError as e:
-        if 'unique constraint' in str(e).lower():
+        if "unique constraint" in str(e).lower():
             return 409, ErrorResponse(
-                error="Conflict",
-                detail="A meal with these parameters already exists"
+                error="Conflict", detail="A meal with these parameters already exists"
             )
         raise
     except Exception as e:
         # Логируем неожиданные ошибки
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in create_meal: {e}", exc_info=True)
 
         return 500, ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred"
+            error="Internal server error", detail="An unexpected error occurred"
         )
 
 
-@user_routers.put("", response={
-    200: UpdateMealSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    404: NotFoundResponse,
-    409: ErrorResponse,
-    500: ErrorResponse,
-})
-def update_meal(
-        request: HttpRequest,
-        payload: MealUpdateIn
-):
+@user_routers.put(
+    "",
+    response={
+        200: UpdateMealSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        404: NotFoundResponse,
+        409: ErrorResponse,
+        500: ErrorResponse,
+    },
+)
+def update_meal(request: HttpRequest, payload: MealUpdateIn):
     """
     Обновить прием пищи
 
@@ -136,42 +133,87 @@ def update_meal(
         patient = _get_patient_profile(request)
         if not payload.id:
             return 400, ValidationErrorResponse(
-                error="Validation error",
-                detail="Meal ID is required for update"
+                error="Validation error", detail="Meal ID is required for update"
             )
 
-        meal = MealService.update_meal(
-            patient=patient,
-            payload=payload
-        )
+        meal = MealService.update_meal(patient=patient, payload=payload)
 
         response_data = MealsResponse(components=[meal])
 
         return 200, UpdateMealSuccessResponse(
-            success=True,
-            message="Meal updated successfully",
-            data=response_data
+            success=True, message="Meal updated successfully", data=response_data
         )
 
     except ValidationError as e:
-        return 400, ValidationErrorResponse(
-            error="Validation error",
-            detail=str(e)
+        return 400, ValidationErrorResponse(error="Validation error", detail=str(e))
+
+
+@user_routers.get(
+    "/photo",
+    response={
+        202: PhotoUploadResponse,
+        400: MessageOut,
+        413: MessageOut,
+    },
+)
+async def get_meals_by_photo(
+    request: HttpRequest,
+    photo: UploadedFile = File(None),
+):
+    """
+    Загрузить фото для распознавания блюд
+
+    Args:
+        photo: изображение с едой (JPEG, PNG, WEBP, max 10MB)
+
+    Returns:
+        202: Accepted - фото принято в обработку
+        400: Bad request - ошибка валидации
+        413: File too large - файл слишком большой
+    """
+
+    # Валидация фото
+    if photo.size > 10 * 1024 * 1024:  # 10MB
+        return 413, {"message": "Photo size should not exceed 10MB"}
+
+    if photo.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+        return 400, {"message": "Only JPEG, PNG and WEBP images are allowed"}
+
+    try:
+        # Читаем фото в байты
+        image_bytes = photo.read()
+
+        # Анализируем через LLM
+        nutrition_info = await MealService.get_meal_by_photo(
+            patient=patient,
+            image=image_bytes,
         )
 
+        # Конвертируем результат в твои схемы
+        # meal_response = _convert_nutrition_to_meal(nutrition_info, patient)
 
-@user_routers.get("/history", response={
-    200: GetMealsSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    500: ErrorResponse,
-})
+        return 200, MealsResponse(components=[meal_response])
+
+    except Exception as e:
+        logger.error(f"Error analyzing photo: {e}")
+        return 500, {"message": f"Analysis failed: {str(e)}"}
+
+
+@user_routers.get(
+    "/history",
+    response={
+        200: GetMealsSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        500: ErrorResponse,
+    },
+)
 def get_history_by_date_and_meal_name(
-        request: HttpRequest,
-        date_time: Optional[datetime.date] = Query(None, alias="date_time"),
-        from_date: Optional[datetime.date] = Query(None),
-        to_date: Optional[datetime.date] = Query(None),
-        meal_type: Optional[str] = Query(alias="meal_type"),
+    request: HttpRequest,
+    date_time: Optional[datetime.date] = Query(None, alias="date_time"),
+    from_date: Optional[datetime.date] = Query(None),
+    to_date: Optional[datetime.date] = Query(None),
+    meal_type: Optional[str] = Query(alias="meal_type"),
 ):
     """
     Получить историю приемов пищи с фильтрацией по дате и типу приема
@@ -200,31 +242,31 @@ def get_history_by_date_and_meal_name(
         if meal_type and meal_type.lower() in Meal.MealTypes.values:
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail=f"Invalid meal_type. Must be one of: {', '.join(Meal.MealTypes.values)}"
+                detail=f"Invalid meal_type. Must be one of: {', '.join(Meal.MealTypes.values)}",
             )
 
         # Если указан date_time, используем его как единственную дату
         if date_time and not isinstance(date_time, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="date_time must be a valid date in format YYYY-MM-DD"
+                detail="date_time must be a valid date in format YYYY-MM-DD",
             )
 
         if from_date and not isinstance(from_date, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="from_date must be a valid date in format YYYY-MM-DD"
+                detail="from_date must be a valid date in format YYYY-MM-DD",
             )
 
         if to_date and not isinstance(to_date, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="to_date must be a valid date in format YYYY-MM-DD"
+                detail="to_date must be a valid date in format YYYY-MM-DD",
             )
         if not date_time and not from_date and not to_date:
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="The lines date_time or (from_date and to_date) must be filled in and must be a valid date in format YYYY-MM-DD"
+                detail="The lines date_time or (from_date and to_date) must be filled in and must be a valid date in format YYYY-MM-DD",
             )
         # Определяем диапазон дат
         if date_time:
@@ -233,10 +275,7 @@ def get_history_by_date_and_meal_name(
 
         # Получаем meals с фильтрацией по дате и типу
         meals = MealService.get_meals_by_date_range_and_type(
-            patient=patient,
-            from_date=from_date,
-            to_date=to_date,
-            meal_type=meal_type
+            patient=patient, from_date=from_date, to_date=to_date, meal_type=meal_type
         )
 
         # Формируем фильтры для ответа
@@ -258,32 +297,34 @@ def get_history_by_date_and_meal_name(
             success=True,
             data=response_data,
             count=len(meals_list),
-            filters=filters if filters else None
+            filters=filters if filters else None,
         )
 
     except PermissionError:
         return 403, ErrorResponse(
-            error="Permission denied",
-            detail="You don't have permission to view meals"
+            error="Permission denied", detail="You don't have permission to view meals"
         )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in get_history: {e}", exc_info=True)
 
         return 500, ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred"
+            error="Internal server error", detail="An unexpected error occurred"
         )
 
 
-@user_routers.get("/{meal_id}", response={
-    200: GetMealSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    404: NotFoundResponse,
-    500: ErrorResponse,
-})
+@user_routers.get(
+    "/{meal_id}",
+    response={
+        200: GetMealSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        404: NotFoundResponse,
+        500: ErrorResponse,
+    },
+)
 def get_meal_by_id(request: HttpRequest, meal_id: UUID):
     """
     Получить детали конкретного приема пищи по ID
@@ -297,50 +338,46 @@ def get_meal_by_id(request: HttpRequest, meal_id: UUID):
     try:
         patient = _get_patient_profile(request)
 
-        meal = MealService.get_meal_by_id(
-            patient=patient,
-            meal_id=str(meal_id)
-        )
+        meal = MealService.get_meal_by_id(patient=patient, meal_id=str(meal_id))
 
         response_data = MealsResponse(components=[meal])
 
-        return 200, GetMealSuccessResponse(
-            success=True,
-            data=response_data
-        )
+        return 200, GetMealSuccessResponse(success=True, data=response_data)
 
     except PermissionError:
         return 403, ErrorResponse(
             error="Permission denied",
-            detail="You don't have permission to view this meal"
+            detail="You don't have permission to view this meal",
         )
     except Http404:
         return 404, NotFoundResponse(
-            error="Not found",
-            detail=f"Meal with id {meal_id} not found"
+            error="Not found", detail=f"Meal with id {meal_id} not found"
         )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in get_meal_by_id: {e}", exc_info=True)
 
         return 500, ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred"
+            error="Internal server error", detail="An unexpected error occurred"
         )
 
 
-@user_routers.get("", response={
-    200: GetMealsSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    500: ErrorResponse,
-})
+@user_routers.get(
+    "",
+    response={
+        200: GetMealsSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        500: ErrorResponse,
+    },
+)
 def get_meals_by_date(
-        request: HttpRequest,
-        date_time: Optional[datetime.date] = Query(None, alias="date_time"),
-        from_date: Optional[datetime.date] = Query(None),
-        to_date: Optional[datetime.date] = Query(None),
+    request: HttpRequest,
+    date_time: Optional[datetime.date] = Query(None, alias="date_time"),
+    from_date: Optional[datetime.date] = Query(None),
+    to_date: Optional[datetime.date] = Query(None),
 ):
     """
     Получить список приемов пищи с фильтрацией
@@ -367,34 +404,30 @@ def get_meals_by_date(
         if date_time and not isinstance(date_time, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="date_time must be a valid date in format YYYY-MM-DD"
+                detail="date_time must be a valid date in format YYYY-MM-DD",
             )
 
         if from_date and not isinstance(from_date, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="from_date must be a valid date in format YYYY-MM-DD"
+                detail="from_date must be a valid date in format YYYY-MM-DD",
             )
 
         if to_date and not isinstance(to_date, datetime.date):
             return 400, ValidationErrorResponse(
                 error="Validation error",
-                detail="to_date must be a valid date in format YYYY-MM-DD"
+                detail="to_date must be a valid date in format YYYY-MM-DD",
             )
         # Если указан dateTime, используем его как единственную дату
 
         if date_time:
             meals = MealService.get_meals_by_date_range(
-                patient=patient,
-                from_date=date_time,
-                to_date=date_time
+                patient=patient, from_date=date_time, to_date=date_time
             )
             filters = {"date": str(date_time)}
         else:
             meals = MealService.get_meals_by_date_range(
-                patient=patient,
-                from_date=from_date,
-                to_date=to_date
+                patient=patient, from_date=from_date, to_date=to_date
             )
             filters = {}
             if from_date:
@@ -409,83 +442,79 @@ def get_meals_by_date(
             success=True,
             data=response_data,
             count=len(meals_list),
-            filters=filters if filters else None
+            filters=filters if filters else None,
         )
 
     except PermissionError:
         return 403, ErrorResponse(
-            error="Permission denied",
-            detail="You don't have permission to view meals"
+            error="Permission denied", detail="You don't have permission to view meals"
         )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in get_meals: {e}", exc_info=True)
 
         return 500, ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred"
+            error="Internal server error", detail="An unexpected error occurred"
         )
 
 
-@user_routers.delete("", response={
-    200: DeleteMealSuccessResponse,
-    400: ValidationErrorResponse,
-    403: ErrorResponse,
-    404: NotFoundResponse,
-    503: ErrorResponse,
-    500: ErrorResponse,
-})
+@user_routers.delete(
+    "",
+    response={
+        200: DeleteMealSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        404: NotFoundResponse,
+        503: ErrorResponse,
+        500: ErrorResponse,
+    },
+)
 def delete_meal(
-        request: HttpRequest,
-        meal_id: UUID = Query(..., alias="mealId"),
+    request: HttpRequest,
+    meal_id: UUID = Query(..., alias="mealId"),
 ):
     """
-        Удалить прием пищи по ID
-        Returns:
-            200: Meal deleted successfully
-            400: Invalid UUID format
-            403: Permission denied
-            404: Meal not found
-            503: Database busy
-            500: Internal server error
-        """
+    Удалить прием пищи по ID
+    Returns:
+        200: Meal deleted successfully
+        400: Invalid UUID format
+        403: Permission denied
+        404: Meal not found
+        503: Database busy
+        500: Internal server error
+    """
     try:
         patient = _get_patient_profile(request)
 
-        MealService.delete_meal(
-            patient=patient,
-            meal_id=str(meal_id)
-        )
+        MealService.delete_meal(patient=patient, meal_id=str(meal_id))
         return 200, DeleteMealSuccessResponse(
-            success=True,
-            message="Meal deleted successfully",
-            deleted_id=str(meal_id)
+            success=True, message="Meal deleted successfully", deleted_id=str(meal_id)
         )
 
     except PermissionError:
         return 403, ErrorResponse(
             error="Permission denied",
-            detail="You don't have permission to delete this meal"
+            detail="You don't have permission to delete this meal",
         )
     except Http404:
         return 404, NotFoundResponse(
-            error="Not found",
-            detail=f"Meal with id {meal_id} not found"
+            error="Not found", detail=f"Meal with id {meal_id} not found"
         )
     except OperationalError as e:
-        if 'database is locked' in str(e).lower():
+        if "database is locked" in str(e).lower():
             return 503, ErrorResponse(
                 error="Database busy",
-                detail="The database is currently locked. Please try again."
+                detail="The database is currently locked. Please try again.",
             )
         raise
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Unexpected error in delete_meal: {e}", exc_info=True)
 
         return 500, ErrorResponse(
-            error="Internal server error",
-            detail="An unexpected error occurred"
+            error="Internal server error", detail="An unexpected error occurred"
         )

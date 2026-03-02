@@ -11,6 +11,7 @@ api = NinjaAPI(
 # Подключаем роуты
 api.add_router("food_diary/", user_routers)  # /api/app/v1/food_diary/*
 
+
 # Для тестирования добавим простой эндпоинт
 @api.get("/health")
 def health_check(request):

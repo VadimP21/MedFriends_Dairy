@@ -108,7 +108,7 @@ class AsyncMetaBaseSingleton(MetaBaseSingleton):
                     instance = cls.__new__(cls)
 
                     # Вызываем асинхронную инициализацию, если она есть
-                    if hasattr(instance, '__ainit__'):
+                    if hasattr(instance, "__ainit__"):
                         await instance.__ainit__(*args, **kwargs)
                     else:
                         # Иначе обычный __init__

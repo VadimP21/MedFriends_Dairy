@@ -10,8 +10,8 @@ class User(AbstractUser, MfBaseModel):
     phone = models.CharField(max_length=20, blank=True, null=True)
     is_patient = models.BooleanField(default=True)
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["username"]
 
     class Meta:
         verbose_name = "Пользователь"
@@ -25,9 +25,7 @@ class PatientProfile(MfBaseModel):
     """Профиль пациента"""
 
     user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE,
-        related_name='patient_profile'
+        User, on_delete=models.CASCADE, related_name="patient_profile"
     )
 
     # Дополнительные поля профиля

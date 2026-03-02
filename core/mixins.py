@@ -9,13 +9,18 @@ class MfBaseModelNoId(models.Model):
     class Meta:
         abstract = True
 
-    created_at = models.DateTimeField(_("Дата создания"), auto_now = True,)
-    updated_at = models.DateTimeField(_("Дата обновления"), auto_now = True)
+    created_at = models.DateTimeField(
+        _("Дата создания"),
+        auto_now=True,
+    )
+    updated_at = models.DateTimeField(_("Дата обновления"), auto_now=True)
 
     def clean(self) -> None:
         if self.created_at and self.updated_at:
             if self.created_at > self.updated_at:
-                raise DjangoValidationError(_("Дата создания не может быть позже даты обновления."))
+                raise DjangoValidationError(
+                    _("Дата создания не может быть позже даты обновления.")
+                )
         return super().clean()
 
     # def save(self, *args, **kwargs):

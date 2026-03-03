@@ -8,70 +8,11 @@ import re
 from typing import Optional, Dict, Any, List, Union
 from datetime import datetime
 
+from apps.food_diary.schemas import DishCreateIn
 from .base import BaseLLMClient
 from .openai_vision_client import OpenAIVisionLLMClient
 
 logger = logging.getLogger(__name__)
-
-
-class FoodNutritionInfo:
-    """Модель данных для информации о питании."""
-
-    def __init__(
-        self,
-        food_name: str,
-        calories: float,
-        proteins: float,
-        fats: float,
-        carbohydrates: float,
-        portion_size: Optional[str] = None,
-        confidence: float = 0.8,
-        ingredients: Optional[List[Dict[str, Any]]] = None,
-    ):
-        self.food_name = food_name
-        self.calories = calories
-        self.proteins = proteins
-        self.fats = fats
-        self.carbohydrates = carbohydrates
-        self.portion_size = portion_size
-        self.confidence = confidence
-        self.ingredients = ingredients or []
-        self.timestamp = datetime.now().isoformat()
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Преобразует в словарь."""
-        return {
-            "food_name": self.food_name,
-            "nutrition": {
-                "calories": self.calories,
-                "proteins": self.proteins,
-                "fats": self.fats,
-                "carbohydrates": self.carbohydrates,
-            },
-            "portion_size": self.portion_size,
-            "confidence": self.confidence,
-            "ingredients": self.ingredients,
-            "timestamp": self.timestamp,
-        }
-
-    def to_json(self) -> str:
-        """Преобразует в JSON строку."""
-        return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
-
-    @classmethod
-    def from_json(cls, json_str: str):
-        """Создает объект из JSON строки."""
-        data = json.loads(json_str)
-        return cls(
-            food_name=data["food_name"],
-            calories=data["nutrition"]["calories"],
-            proteins=data["nutrition"]["proteins"],
-            fats=data["nutrition"]["fats"],
-            carbohydrates=data["nutrition"]["carbohydrates"],
-            portion_size=data.get("portion_size"),
-            confidence=data.get("confidence", 0.8),
-            ingredients=data.get("ingredients", []),
-        )
 
 
 class FoodAnalysisService:
@@ -80,37 +21,49 @@ class FoodAnalysisService:
     Использует мультимодальный LLM клиент.
     """
 
-    # Системный промпт для анализа еды
     FOOD_ANALYSIS_SYSTEM_PROMPT = """
-Ты - эксперт-диетолог с глубокими знаниями о составе блюд и их пищевой ценности.
-Твоя задача - анализировать фотографии еды и предоставлять точную информацию о КБЖУ.
+Ты - эксперт по питанию и диетологии с 15-летним опытом. 
+Твоя задача - анализировать фотографии еды или аудио сообщения с описанием еды и определять её пищевую ценность.
 
-Правила анализа:
-1. Определи название блюда максимально точно
-2. Оцени примерный размер порции
-3. Рассчитай КБЖУ (калории, белки, жиры, углеводы) на основе:
-   - Типичного состава блюда
-   - Размера порции
-   - Стандартных рецептур
-4. Если можешь определить ингредиенты, перечисли их с примерными пропорциями
-5. Укажи уровень уверенности в оценке (0.0-1.0)
+ТВОИ ОГРАНИЧЕНИЯ И ПРАВИЛА:
+1. Отвечай только в формате JSON без каких-либо дополнительных текстов
+2. Не включай markdown разметку в ответ
+3. Если не уверен в продукте - укажи это в score
+4. Всегда оценивай размер порции относительно стандартных размеров
+5. Используй средние значения пищевой ценности для продуктов
+6. Для составных блюд разбивай на основные компоненты
+7. Всегда указывай вес в граммах, калории в ккал, а также белки, жиры и углеводы с точностью до одного знака после запятой
+8. Если видишь несколько продуктов - анализируй каждый отдельно
+9. Учитывай способ приготовления (жареное, вареное, сырое и т.д.)
+10. Для напитков указывай объем в мл
+
+ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:
+- Пользователь находится в России, используй распространенные там продукты
+- Учитывай сезонность продуктов
+- Стандартный размер тарелки: 25см диаметр
+- Стандартный стакан: 250мл
 
 Верни результат строго в формате JSON со следующей структурой:
-{
-    "food_name": "название блюда",
-    "nutrition": {
-        "calories": число (ккал),
-        "proteins": число (г),
-        "fats": число (г),
-        "carbohydrates": число (г)
-    },
-    "portion_size": "описание размера порции",
-    "confidence": число от 0 до 1,
-    "ingredients": [
-        {"name": "ингредиент", "portion": "примерное количество"}
-    ]
-}
 
+[
+        {
+          "name": "название блюда",
+          "weight": float (г),
+          "calories": integer (ккал),
+          "protein": float (г),
+          "fat": float (г),
+          "carbohydrates": float (г),
+        },
+        {
+          "name": "название блюда 2",
+          "weight": float (г),
+          "calories": integer (ккал),
+          "protein": float (г),
+          "fat": float (г),
+          "carbohydrates": float (г),
+        }
+]
+        
 Не добавляй никакого текста кроме JSON.
 """
 
@@ -131,7 +84,7 @@ class FoodAnalysisService:
 
     async def analyze_food_image(
         self, image: Union[str, bytes], additional_context: Optional[str] = None
-    ) -> FoodNutritionInfo:
+    ) -> List[DishCreateIn]:
         """
         Анализирует одно изображение еды.
 
@@ -140,7 +93,7 @@ class FoodAnalysisService:
             additional_context: Дополнительный контекст (например, "это обед", "порция большая")
 
         Returns:
-            FoodNutritionInfo с данными о КБЖУ
+            List[DishCreateIn] с данными о КБЖУ
         """
         prompt = self._build_analysis_prompt(additional_context)
 
@@ -153,21 +106,20 @@ class FoodAnalysisService:
             )
 
             # Извлекаем JSON из ответа
-            nutrition_data = self._extract_json_from_response(response)
+            dishes_data = self._extract_json_from_response(response)
 
-            # Создаем объект с данными
-            return FoodNutritionInfo(
-                food_name=nutrition_data.get("food_name", "Неизвестное блюдо"),
-                calories=nutrition_data.get("nutrition", {}).get("calories", 0),
-                proteins=nutrition_data.get("nutrition", {}).get("proteins", 0),
-                fats=nutrition_data.get("nutrition", {}).get("fats", 0),
-                carbohydrates=nutrition_data.get("nutrition", {}).get(
-                    "carbohydrates", 0
-                ),
-                portion_size=nutrition_data.get("portion_size"),
-                confidence=nutrition_data.get("confidence", 0.5),
-                ingredients=nutrition_data.get("ingredients", []),
-            )
+            # Создаем список DishCreateIn из полученных данных
+            return [
+                DishCreateIn(
+                    name=dish_data.get("name", "Неизвестное блюдо"),
+                    weight=float(dish_data.get("weight", 0)),
+                    calories=int(dish_data.get("calories", 0)),
+                    protein=float(dish_data.get("protein", 0)),
+                    fat=float(dish_data.get("fat", 0)),
+                    carbohydrates=float(dish_data.get("carbohydrates", 0)),
+                )
+                for dish_data in dishes_data
+            ]
 
         except Exception as e:
             logger.error("Ошибка при анализе изображения: %s", str(e))
@@ -175,7 +127,7 @@ class FoodAnalysisService:
 
     async def analyze_multiple_food_images(
         self, images: List[Union[str, bytes]], additional_context: Optional[str] = None
-    ) -> List[FoodNutritionInfo]:
+    ) -> List[DishCreateIn]:
         """
         Анализирует несколько изображений еды (например, несколько блюд).
 
@@ -184,7 +136,7 @@ class FoodAnalysisService:
             additional_context: Дополнительный контекст
 
         Returns:
-            Список FoodNutritionInfo для каждого изображения
+            Список списков DishCreateIn для каждого изображения
         """
         results = []
 
@@ -192,64 +144,24 @@ class FoodAnalysisService:
             logger.info("Анализ изображения %d из %d", i + 1, len(images))
             try:
                 result = await self.analyze_food_image(image, additional_context)
-                results.append(result)
+                results.extend(result)
             except Exception as e:
                 logger.error("Ошибка при анализе изображения %d: %s", i + 1, str(e))
                 # Добавляем "пустой" результат с низкой уверенностью
-                results.append(
-                    FoodNutritionInfo(
-                        food_name=f"Ошибка анализа {i+1}",
-                        calories=0,
-                        proteins=0,
-                        fats=0,
-                        carbohydrates=0,
-                        confidence=0.0,
-                    )
+                results.extend(
+                    [
+                        DishCreateIn(
+                            name=f"Ошибка анализа {i + 1}",
+                            weight=0,
+                            calories=0,
+                            protein=0,
+                            fat=0,
+                            carbohydrates=0,
+                        )
+                    ]
                 )
 
         return results
-
-    async def analyze_with_estimation(
-        self,
-        image: Union[str, bytes],
-        meal_type: Optional[str] = None,  # breakfast, lunch, dinner, snack
-    ) -> Dict[str, Any]:
-        """
-        Анализирует изображение и возвращает расширенную информацию
-        с оценкой для дневного рациона.
-
-        Args:
-            image: Изображение еды
-            meal_type: Тип приема пищи
-
-        Returns:
-            Словарь с данными анализа и рекомендациями
-        """
-        # Получаем базовый анализ
-        nutrition = await self.analyze_food_image(image)
-
-        # Добавляем контекстную информацию
-        result = nutrition.to_dict()
-
-        # Добавляем метаданные о приеме пищи
-        result["meal_type"] = meal_type or "unknown"
-
-        # Добавляем рекомендации (пример)
-        result["recommendations"] = self._generate_recommendations(nutrition)
-
-        # Добавляем оценку вклада в дневную норму (примерные значения)
-        result["daily_contribution"] = {
-            "calories_percent": round(
-                (nutrition.calories / 2000) * 100, 1
-            ),  # при норме 2000 ккал
-            "proteins_percent": round(
-                (nutrition.proteins / 50) * 100, 1
-            ),  # примерная норма
-            "fats_percent": round((nutrition.fats / 70) * 100, 1),
-            "carbs_percent": round((nutrition.carbohydrates / 250) * 100, 1),
-        }
-
-        return result
 
     def _build_analysis_prompt(self, additional_context: Optional[str] = None) -> str:
         """Формирует промпт для анализа."""
@@ -264,7 +176,7 @@ class FoodAnalysisService:
 
         return prompt
 
-    def _extract_json_from_response(self, response: str) -> Dict[str, Any]:
+    def _extract_json_from_response(self, response: str) -> List[dict[str, Any]]:
         """
         Извлекает JSON из ответа модели.
 
@@ -272,66 +184,36 @@ class FoodAnalysisService:
             response: Ответ модели
 
         Returns:
-            Словарь с данными
+            Список словарей с данными
         """
-        # Ищем JSON в ответе
-        json_match = re.search(r"\{.*\}", response, re.DOTALL)
+        # Ищем JSON массив в ответе
+        json_match = re.search(r"\[.*\]", response, re.DOTALL)
 
         if json_match:
             json_str = json_match.group()
         else:
-            json_str = response
+            # Если нет массива, ищем объект
+            json_match = re.search(r"\{.*\}", response, re.DOTALL)
+            if json_match:
+                json_str = f"[{json_match.group()}]"
+            else:
+                json_str = response
 
         # Пробуем распарсить
         try:
             return json.loads(json_str)
         except json.JSONDecodeError:
-            logger.warning("Не удалось распарсить JSON, возвращаем пустой словарь")
-            return {
-                "food_name": "Не удалось распознать",
-                "nutrition": {
+            logger.warning("Не удалось распарсить JSON, возвращаем пустой список")
+            return [
+                {
+                    "name": "Не удалось распознать",
+                    "weight": 0,
                     "calories": 0,
-                    "proteins": 0,
-                    "fats": 0,
+                    "protein": 0,
+                    "fat": 0,
                     "carbohydrates": 0,
-                },
-                "confidence": 0.1,
-            }
-
-    def _generate_recommendations(self, nutrition: FoodNutritionInfo) -> List[str]:
-        """
-        Генерирует простые рекомендации на основе КБЖУ.
-
-        Args:
-            nutrition: Данные о питании
-
-        Returns:
-            Список рекомендаций
-        """
-        recommendations = []
-
-        # Простые правила (пример)
-        if nutrition.calories > 800:
-            recommendations.append(
-                "Высококалорийное блюдо, возможно, стоит уменьшить порцию"
-            )
-
-        if nutrition.fats > 30:
-            recommendations.append("Много жиров, обратите внимание на баланс")
-
-        if nutrition.proteins < 10 and nutrition.calories > 300:
-            recommendations.append("Мало белка при такой калорийности")
-
-        if nutrition.carbohydrates > 100:
-            recommendations.append(
-                "Много углеводов, возможно, стоит выбрать другой гарнир"
-            )
-
-        if not recommendations:
-            recommendations.append("Сбалансированное блюдо")
-
-        return recommendations
+                }
+            ]
 
 
-# Глобальный экземпляр сервиса
 food_analysis_service = FoodAnalysisService()

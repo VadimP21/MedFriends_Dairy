@@ -151,20 +151,26 @@ def update_meal(request: HttpRequest, payload: MealUpdateIn):
 @user_routers.get(
     "/photo",
     response={
-        202: PhotoUploadResponse,
-        400: MessageOut,
-        413: MessageOut,
+        201: CreateMealSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        409: ErrorResponse,
+        500: ErrorResponse,
+        413: ErrorResponse,
     },
 )
-async def get_meals_by_photo(
+async def create_meals_by_photo(
     request: HttpRequest,
     photo: UploadedFile = File(None),
+    meal_type: Optional[str] = Query(alias="meal_type"),
 ):
     """
     Загрузить фото для распознавания блюд
 
     Args:
+        request: HttpRequest
         photo: изображение с едой (JPEG, PNG, WEBP, max 10MB)
+        meal_type: тип приема пищи (breakfast/lunch/dinner/snack)
 
     Returns:
         202: Accepted - фото принято в обработку
@@ -180,23 +186,47 @@ async def get_meals_by_photo(
         return 400, {"message": "Only JPEG, PNG and WEBP images are allowed"}
 
     try:
+        patient = _get_patient_profile(request)
+
         # Читаем фото в байты
         image_bytes = photo.read()
 
         # Анализируем через LLM
-        nutrition_info = await MealService.get_meal_by_photo(
+        meal = await MealService.get_meal_by_photo(
             patient=patient,
-            image=image_bytes,
+            name=meal_type,
+            image_bytes=image_bytes,
         )
-
-        # Конвертируем результат в твои схемы
-        # meal_response = _convert_nutrition_to_meal(nutrition_info, patient)
-
-        return 200, MealsResponse(components=[meal_response])
+        response_data = MealsResponse(components=[meal])
+        return 201, CreateMealSuccessResponse(
+            success=True, message="Meal created successfully", data=response_data
+        )
+    except ValidationError as e:
+        return 400, ValidationErrorResponse(
+            error="Validation error",
+            detail=str(e),
+            field_errors=getattr(e, "message_dict", None),
+        )
+    except PermissionError:
+        return 403, ErrorResponse(
+            error="Permission denied", detail="You don't have permission to view meals"
+        )
+    except IntegrityError as e:
+        if "unique constraint" in str(e).lower():
+            return 409, ErrorResponse(
+                error="Conflict", detail="A meal with these parameters already exists"
+            )
 
     except Exception as e:
-        logger.error(f"Error analyzing photo: {e}")
-        return 500, {"message": f"Analysis failed: {str(e)}"}
+        # Логируем неожиданные ошибки
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in create_meal: {e}", exc_info=True)
+
+        return 500, ErrorResponse(
+            error="Internal server error", detail="An unexpected error occurred"
+        )
 
 
 @user_routers.get(

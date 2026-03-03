@@ -1,11 +1,11 @@
 import datetime
+
 from django.db.models import QuerySet
-from typing import Optional
+from typing import Optional, List
 
 from ai_agent import food_analysis_service
-from ai_agent.food_analysis_service import FoodNutritionInfo
 from apps.food_diary.models import Meal, Dish
-from apps.food_diary.schemas import MealCreateIn, MealUpdateIn
+from apps.food_diary.schemas import MealCreateIn, MealUpdateIn, DishCreateIn
 from apps.accounts.models import PatientProfile
 from apps.food_diary.utils import get_meal_name_by_time
 from django.core.exceptions import ValidationError
@@ -35,8 +35,8 @@ class MealService:
                     Dish(
                         **dish.model_dump(),
                         meal=meal,
-                        created_at=now,  # добавляем явно
-                        updated_at=now
+                        created_at=now,
+                        updated_at=now,
                     )
                     for dish in payload.components
                 ]
@@ -90,52 +90,6 @@ class MealService:
         """
         meal = get_object_or_404(Meal, id=meal_id, patient=patient)
         meal.delete()
-
-    @staticmethod
-    def get_daily_summary(patient: PatientProfile, target_date: datetime.date) -> dict:
-        """
-        Получить сводку за день
-        """
-        meals = Meal.objects.filter(
-            patient=patient, meal_date=target_date
-        ).prefetch_related("components")
-
-        total_calories = 0
-        total_protein = 0.0
-        total_fat = 0.0
-        total_carbohydrates = 0.0
-        by_meal_type = {}
-
-        for meal in meals:
-            total_calories += meal.total_calories
-            total_protein += meal.total_protein
-            total_fat += meal.total_fat
-            total_carbohydrates += meal.total_carbohydrates
-
-            if meal.meal_type not in by_meal_type:
-                by_meal_type[meal.meal_type] = {
-                    "count": 0,
-                    "calories": 0,
-                    "protein": 0,
-                    "fat": 0,
-                    "carbohydrates": 0,
-                }
-
-            by_meal_type[meal.meal_type]["count"] += 1
-            by_meal_type[meal.meal_type]["calories"] += meal.total_calories
-            by_meal_type[meal.meal_type]["protein"] += meal.total_protein
-            by_meal_type[meal.meal_type]["fat"] += meal.total_fat
-            by_meal_type[meal.meal_type]["carbohydrates"] += meal.total_carbohydrates
-
-        return {
-            "date": target_date,
-            "total_meals": meals.count(),
-            "total_calories": total_calories,
-            "total_protein": round(total_protein, 1),
-            "total_fat": round(total_fat, 1),
-            "total_carbohydrates": round(total_carbohydrates, 1),
-            "by_meal_type": by_meal_type,
-        }
 
     @staticmethod
     def get_meals_by_date(
@@ -201,35 +155,57 @@ class MealService:
         return meals.prefetch_related("components").order_by("-meal_date", "-meal_time")
 
     @staticmethod
-    async def get_meal_by_photo(patient: PatientProfile, image_bytes: bytes) -> Meal:
+    async def get_meal_by_photo(
+        patient: PatientProfile, image_bytes: bytes, name: str = None
+    ) -> Meal:
+        """
+        Создать новый прием пищи по фото, используя create_meal
+
+        Args:
+            patient: Профиль пациента
+            image_bytes: Байты изображения
+            name: Название приема пищи (опционально)
+
+        Returns:
+            Созданный объект Meal
+
+        Raises:
+            ValidationError: Если ошибка анализа фото или создания
+        """
         try:
-            payload: FoodNutritionInfo = await food_analysis_service.analyze_food_image(
-                image=image_bytes,
+            # 1. Анализируем фото через AI сервис
+            dishes_data: List[DishCreateIn] = (
+                await food_analysis_service.analyze_food_image(
+                    image=image_bytes,
+                )
             )
-            try:
-                with transaction.atomic():
-                    now = timezone.now()
-                    meal = Meal.objects.create(
-                        patient=patient,
-                        name=payload.food_name or get_meal_name_by_time(now.time()),
-                        meal_date=now.date(),
-                        meal_time=now.time(),
-                    )
-                    dishes = [
-                        Dish(
-                            **dish.model_dump(),
-                            meal=meal,
-                            created_at=now,  # добавляем явно
-                            updated_at=now
-                        )
-                        for dish in payload.components
-                    ]
-                    Dish.objects.bulk_create(dishes)
 
-                return Meal.objects.prefetch_related("components").get(id=meal.id)
-            except IntegrityError as e:
-                if "unique constraint" in str(e).lower():
-                    raise ValidationError("A meal with these parameters already exists")
+            if not dishes_data:
+                raise ValidationError("No dishes detected in the photo")
 
+            now = timezone.now()
+            meal_payload = MealCreateIn(
+                name=name,
+                meal_date=now.date(),
+                meal_time=now.time(),
+                components=dishes_data,
+            )
+
+            meal = MealService.create_meal(patient=patient, payload=meal_payload)
+            import logging
+
+            logger = logging.getLogger(__name__)
+
+            logger.info(
+                f"Meal created from photo: {meal.id} with {len(dishes_data)} dishes"
+            )
+            return meal
+
+        except ValidationError:
+            raise
         except Exception as e:
-            raise ValidationError("Error analyzing photo: %s", str(e))
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating meal from photo: {e}", exc_info=True)
+            raise ValidationError(f"Error analyzing photo: {str(e)}")

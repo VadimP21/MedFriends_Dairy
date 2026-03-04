@@ -155,8 +155,8 @@ class MealService:
         return meals.prefetch_related("components").order_by("-meal_date", "-meal_time")
 
     @staticmethod
-    async def get_meal_by_photo(
-        patient: PatientProfile, image_bytes: bytes, name: str = None
+    def get_meal_by_photo(
+        patient: PatientProfile, image_bytes: bytes, name: str = None, timeout: int = 2
     ) -> Meal:
         """
         Создать новый прием пищи по фото, используя create_meal
@@ -165,20 +165,39 @@ class MealService:
             patient: Профиль пациента
             image_bytes: Байты изображения
             name: Название приема пищи (опционально)
-
+            timeout: таймаут запроса к AI
         Returns:
             Созданный объект Meal
 
         Raises:
             ValidationError: Если ошибка анализа фото или создания
         """
+        import asyncio
+        import logging
+        from asyncio import TimeoutError
+
+        logger = logging.getLogger(__name__)
         try:
-            # 1. Анализируем фото через AI сервис
-            dishes_data: List[DishCreateIn] = (
-                await food_analysis_service.analyze_food_image(
-                    image=image_bytes,
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+
+                task = asyncio.wait_for(
+                    food_analysis_service.analyze_food_image(image=image_bytes),
+                    timeout=timeout,
                 )
-            )
+                dishes_data = loop.run_until_complete(task)
+            except TimeoutError:
+                logger.error(f"AI service timeout after {timeout} seconds")
+                raise ValidationError(
+                    f"Food analysis service not responding. Please try again later."
+                )
+            except Exception as e:
+                logger.error(f"Error during AI analysis: {e}", exc_info=True)
+                raise ValidationError(f"Error analyzing photo: {str(e)}")
+
+            finally:
+                loop.close()
 
             if not dishes_data:
                 raise ValidationError("No dishes detected in the photo")
@@ -192,9 +211,6 @@ class MealService:
             )
 
             meal = MealService.create_meal(patient=patient, payload=meal_payload)
-            import logging
-
-            logger = logging.getLogger(__name__)
 
             logger.info(
                 f"Meal created from photo: {meal.id} with {len(dishes_data)} dishes"

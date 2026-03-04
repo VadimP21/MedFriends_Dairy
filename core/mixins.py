@@ -5,6 +5,10 @@ from django.utils.translation import gettext_lazy as _
 from django.db import models
 
 
+class DjangoValidationError(Exception):
+    pass
+
+
 class MfBaseModelNoId(models.Model):
     class Meta:
         abstract = True

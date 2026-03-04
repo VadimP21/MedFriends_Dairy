@@ -49,6 +49,87 @@ user_routers = Router(tags=["food_fairy"])
 
 
 @user_routers.post(
+    "/photo",
+    response={
+        201: CreateMealSuccessResponse,
+        400: ValidationErrorResponse,
+        403: ErrorResponse,
+        409: ErrorResponse,
+        500: ErrorResponse,
+        413: ErrorResponse,
+    },
+)
+def create_meals_by_photo(
+    request: HttpRequest,
+    photo: UploadedFile = File(),
+    meal_type: Optional[str] = Query(None, alias="meal_type"),
+):
+    """
+    Загрузить фото для распознавания блюд
+
+    Args:
+        request: HttpRequest
+        photo: изображение с едой (JPEG, PNG, WEBP, max 10MB)
+        meal_type: тип приема пищи (breakfast/lunch/dinner/snack)
+
+    Returns:
+        202: Accepted - фото принято в обработку
+        400: Bad request - ошибка валидации
+        413: File too large - файл слишком большой
+    """
+
+    # Валидация фото
+
+    try:
+        patient = _get_patient_profile(request)
+
+        if photo.size > 10 * 1024 * 1024:  # 10MB
+            return 413, {"message": "Photo size should not exceed 10MB"}
+
+        if photo.content_type not in ["image/jpeg", "image/png", "image/webp"]:
+            return 400, {"message": "Only JPEG, PNG and WEBP images are allowed"}
+
+        # Читаем фото в байты
+        image_bytes = photo.read()
+
+        # Анализируем через LLM
+        meal = MealService.get_meal_by_photo(
+            patient=patient,
+            name=meal_type,
+            image_bytes=image_bytes,
+        )
+        response_data = MealsResponse(components=[meal])
+        return 201, CreateMealSuccessResponse(
+            success=True, message="Meal created successfully", data=response_data
+        )
+    except ValidationError as e:
+        return 400, ValidationErrorResponse(
+            error="Validation error",
+            detail=str(e),
+            field_errors=getattr(e, "message_dict", None),
+        )
+    except PermissionError:
+        return 403, ErrorResponse(
+            error="Permission denied", detail="You don't have permission to view meals"
+        )
+    except IntegrityError as e:
+        if "unique constraint" in str(e).lower():
+            return 409, ErrorResponse(
+                error="Conflict", detail="A meal with these parameters already exists"
+            )
+
+    except Exception as e:
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in create_meal: {e}", exc_info=True)
+
+        return 500, ErrorResponse(
+            error="Internal server error", detail="An unexpected error occurred"
+        )
+
+
+@user_routers.post(
     "",
     response={
         201: CreateMealSuccessResponse,
@@ -149,87 +230,6 @@ def update_meal(request: HttpRequest, payload: MealUpdateIn):
 
 
 @user_routers.get(
-    "/photo",
-    response={
-        201: CreateMealSuccessResponse,
-        400: ValidationErrorResponse,
-        403: ErrorResponse,
-        409: ErrorResponse,
-        500: ErrorResponse,
-        413: ErrorResponse,
-    },
-)
-async def create_meals_by_photo(
-    request: HttpRequest,
-    photo: UploadedFile = File(None),
-    meal_type: Optional[str] = Query(alias="meal_type"),
-):
-    """
-    Загрузить фото для распознавания блюд
-
-    Args:
-        request: HttpRequest
-        photo: изображение с едой (JPEG, PNG, WEBP, max 10MB)
-        meal_type: тип приема пищи (breakfast/lunch/dinner/snack)
-
-    Returns:
-        202: Accepted - фото принято в обработку
-        400: Bad request - ошибка валидации
-        413: File too large - файл слишком большой
-    """
-
-    # Валидация фото
-    if photo.size > 10 * 1024 * 1024:  # 10MB
-        return 413, {"message": "Photo size should not exceed 10MB"}
-
-    if photo.content_type not in ["image/jpeg", "image/png", "image/webp"]:
-        return 400, {"message": "Only JPEG, PNG and WEBP images are allowed"}
-
-    try:
-        patient = _get_patient_profile(request)
-
-        # Читаем фото в байты
-        image_bytes = photo.read()
-
-        # Анализируем через LLM
-        meal = await MealService.get_meal_by_photo(
-            patient=patient,
-            name=meal_type,
-            image_bytes=image_bytes,
-        )
-        response_data = MealsResponse(components=[meal])
-        return 201, CreateMealSuccessResponse(
-            success=True, message="Meal created successfully", data=response_data
-        )
-    except ValidationError as e:
-        return 400, ValidationErrorResponse(
-            error="Validation error",
-            detail=str(e),
-            field_errors=getattr(e, "message_dict", None),
-        )
-    except PermissionError:
-        return 403, ErrorResponse(
-            error="Permission denied", detail="You don't have permission to view meals"
-        )
-    except IntegrityError as e:
-        if "unique constraint" in str(e).lower():
-            return 409, ErrorResponse(
-                error="Conflict", detail="A meal with these parameters already exists"
-            )
-
-    except Exception as e:
-        # Логируем неожиданные ошибки
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"Unexpected error in create_meal: {e}", exc_info=True)
-
-        return 500, ErrorResponse(
-            error="Internal server error", detail="An unexpected error occurred"
-        )
-
-
-@user_routers.get(
     "/history",
     response={
         200: GetMealsSuccessResponse,
@@ -268,7 +268,6 @@ def get_history_by_date_and_meal_name(
     try:
         patient = _get_patient_profile(request)
 
-        # Валидация meal_type если указан
         if meal_type and meal_type.lower() in Meal.MealTypes.values:
             return 400, ValidationErrorResponse(
                 error="Validation error",
@@ -308,7 +307,6 @@ def get_history_by_date_and_meal_name(
             patient=patient, from_date=from_date, to_date=to_date, meal_type=meal_type
         )
 
-        # Формируем фильтры для ответа
         filters = {}
         if date_time:
             filters["date"] = str(date_time)

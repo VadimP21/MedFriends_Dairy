@@ -1,6 +1,7 @@
 """
 Модуль с сервисом для анализа фотографий еды и расчета КБЖУ.
 """
+
 import base64
 import logging
 import json
@@ -19,24 +20,28 @@ logger = logging.getLogger(__name__)
 class FoodAnalysisService:
     """
     Сервис для анализа фотографий еды и расчета КБЖУ.
-    Использует мультимодальный LLM клиент.
+        prompt: Системный промпт
+    Attributes:
+        _client: LLM клиент, назначается через config
     """
+
     prompt = food_analise_system_prompt
+
     def __init__(self):
         self._client = LLMClient.create_client()
 
+        logger.info(
+            "Инициализирован FoodAnalysisService с клиентом: %s",
+            self._client.__class__.__name__,
+        )
 
-    # logger.info(
-    #     "Инициализирован FoodAnalysisService с клиентом: %s",
-    #     _client.__class__.__name__,
-    # )
-
-    def content_for_openai(self, images: List[Union[str, bytes]]):
+    def _content_for_openai_deepseek(
+        self, images: List[Union[str, bytes]]
+    ) -> list[dict[str, str]]:
         """
         Подготовка контента для OpenAI Vision с изображениями.
 
         Args:
-            prompt: Текстовый промпт (например, "Что это за еда? Рассчитай КБЖУ")
             images: Список изображений (URL или байты)
 
         Returns:
@@ -65,17 +70,14 @@ class FoodAnalysisService:
         return content
 
     async def ainvoke_with_images(
-            self,
-            images: List[Union[str, bytes]],
-            **kwargs
+        self,
+        images: List[Union[str, bytes]],
     ) -> str:
         """
         Асинхронный вызов OpenAI Vision с изображениями.
 
         Args:
-            prompt: Текстовый промпт (например, "Что это за еда? Рассчитай КБЖУ")
             images: Список изображений (URL или байты)
-            **kwargs: Дополнительные параметры
 
         Returns:
             Ответ модели
@@ -83,7 +85,7 @@ class FoodAnalysisService:
         # Подготавливаем содержимое сообщения
 
         # Создаем сообщение
-        content = self.content_for_openai(images)
+        content = self._content_for_openai_deepseek(images)
         message = HumanMessage(content=content)
 
         # Получаем модель с поддержкой vision
@@ -91,12 +93,10 @@ class FoodAnalysisService:
         # Отправляем запрос
         response = await self._client.ainvoke([message])
 
-        logger.info("Обработано изображений: %d", len(content)-1)
+        logger.info("Обработано изображений: %d", len(content) - 1)
         return response.content
 
-    async def analyze_food_image(
-            self, image: Union[str, bytes], additional_context: Optional[str] = None
-    ) -> List[DishCreateIn]:
+    async def analyze_food_image(self, image: Union[str, bytes]) -> List[DishCreateIn]:
         """
         Анализирует одно изображение еды.
 
@@ -111,7 +111,6 @@ class FoodAnalysisService:
         try:
 
             response = await self.ainvoke_with_images(
-                prompt=self.prompt,
                 images=[image],
             )
 
@@ -136,7 +135,7 @@ class FoodAnalysisService:
             raise
 
     async def analyze_multiple_food_images(
-            self, images: List[Union[str, bytes]], additional_context: Optional[str] = None
+        self, images: List[Union[str, bytes]], additional_context: Optional[str] = None
     ) -> List[DishCreateIn]:
         """
         Анализирует несколько изображений еды (например, несколько блюд).
@@ -173,20 +172,8 @@ class FoodAnalysisService:
 
         return results
 
-    def _build_analysis_prompt(self, additional_context: Optional[str] = None) -> str:
-        """Формирует промпт для анализа."""
-        prompt = self.FOOD_ANALYSIS_SYSTEM_PROMPT
-
-        if additional_context:
-            prompt += (
-                f"\n\nДополнительная информация от пользователя: {additional_context}"
-            )
-
-        prompt += "\n\nАнализируй изображение и верни JSON с данными о блюде."
-
-        return prompt
-
-    def _extract_json_from_response(self, response: str) -> List[dict[str, Any]]:
+    @staticmethod
+    def _extract_json_from_response(response: str) -> List[dict[str, Any]]:
         """
         Извлекает JSON из ответа модели.
 

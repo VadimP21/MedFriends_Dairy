@@ -5,43 +5,52 @@
 from logging import getLogger
 from typing import Any, List, Union
 
+from gigachat import GigaChat
 from langchain_core.messages import BaseMessage
+from langchain_openai import ChatOpenAI
 
-from .meta_base import MetaBaseSingleton
-from .factory import LLMClientFactory, LLMProvider
+from ai_agent.config import LLMProvider, llm_settings
 
 logger = getLogger()
 
 
-class LLMClient(metaclass=MetaBaseSingleton):
+class LLMClient:
     """
     Синглтон-клиент для работы с LLM.
-    Позволяет легко переключаться между провайдерами.
+    Переключение между провайдерами осуществляется через llm_settings.
     """
 
-    _current_provider: LLMProvider = LLMProvider.DEEPSEEK
-    _client_instance = None
+    _current_provider: LLMProvider = llm_settings.active_provider
+    settings = llm_settings
 
     @classmethod
-    def set_provider(cls, provider: LLMProvider):
+    def create_client(cls, provider = _current_provider) -> ChatOpenAI:
         """
-        Устанавливает провайдера для всех последующих вызовов.
+        Возвращает экземпляр клиента для текущего провайдера.
+        """
+        # if cls._client_instance is None:
+        #     cls._client_instance = LLMClientFactory.create_client(cls._current_provider)
+        # return cls._client_instance
 
-        Args:
-            provider: Провайдер LLM
-        """
-        cls._current_provider = provider
-        cls._client_instance = None  # Сбрасываем кэш
-        logger.info("Установлен провайдер LLM: %s", provider.value)
+        if not provider:
+            raise ValueError(f"Unsupported provider: {cls.provider}")
 
-    @classmethod
-    def _get_client(cls) -> Any:
-        """
-        Возвращает или создает экземпляр клиента для текущего провайдера.
-        """
-        if cls._client_instance is None:
-            cls._client_instance = LLMClientFactory.create_client(cls._current_provider)
-        return cls._client_instance
+        provider_config = cls.settings.get_provider_config(provider)
+        common_settings = cls.settings.get_common_config()
+        total_provider_settings = {**provider_config, **common_settings}
+
+        logger.info("total_provider_settings: %s", total_provider_settings)
+
+        clients = {
+            "gigachat": GigaChat(**total_provider_settings),
+            "openai": ChatOpenAI(**total_provider_settings),
+            "deepseek": ChatOpenAI(**total_provider_settings),
+
+        }
+        x = ChatOpenAI(**total_provider_settings)
+        return x
+
+
 
     @classmethod
     async def ainvoke(cls, messages: list[BaseMessage], **kwargs) -> str:

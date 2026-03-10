@@ -1,16 +1,17 @@
 """
 Модуль с сервисом для анализа фотографий еды и расчета КБЖУ.
 """
-
+import base64
 import logging
 import json
 import re
-from typing import Optional, Dict, Any, List, Union
-from datetime import datetime
+from typing import Optional, Any, List, Union
+
+from langchain_core.messages import HumanMessage
 
 from apps.food_diary.schemas import DishCreateIn
-from .base import BaseLLMClient
-from .openai_vision_client import OpenAIVisionLLMClient
+from . import LLMClient
+from .prompts import food_analise_system_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -20,70 +21,81 @@ class FoodAnalysisService:
     Сервис для анализа фотографий еды и расчета КБЖУ.
     Использует мультимодальный LLM клиент.
     """
+    prompt = food_analise_system_prompt
+    def __init__(self):
+        self._client = LLMClient.create_client()
 
-    FOOD_ANALYSIS_SYSTEM_PROMPT = """
-Ты - эксперт по питанию и диетологии с 15-летним опытом. 
-Твоя задача - анализировать фотографии еды или аудио сообщения с описанием еды и определять её пищевую ценность.
 
-ТВОИ ОГРАНИЧЕНИЯ И ПРАВИЛА:
-1. Отвечай только в формате JSON без каких-либо дополнительных текстов
-2. Не включай markdown разметку в ответ
-3. Если не уверен в продукте - укажи это в score
-4. Всегда оценивай размер порции относительно стандартных размеров
-5. Используй средние значения пищевой ценности для продуктов
-6. Для составных блюд разбивай на основные компоненты
-7. Всегда указывай вес в граммах, калории в ккал, а также белки, жиры и углеводы с точностью до одного знака после запятой
-8. Если видишь несколько продуктов - анализируй каждый отдельно
-9. Учитывай способ приготовления (жареное, вареное, сырое и т.д.)
-10. Для напитков указывай объем в мл
+    # logger.info(
+    #     "Инициализирован FoodAnalysisService с клиентом: %s",
+    #     _client.__class__.__name__,
+    # )
 
-ДОПОЛНИТЕЛЬНАЯ ИНФОРМАЦИЯ:
-- Пользователь находится в России, используй распространенные там продукты
-- Учитывай сезонность продуктов
-- Стандартный размер тарелки: 25см диаметр
-- Стандартный стакан: 250мл
-
-Верни результат строго в формате JSON со следующей структурой:
-
-[
-        {
-          "name": "название блюда",
-          "weight": float (г),
-          "calories": integer (ккал),
-          "protein": float (г),
-          "fat": float (г),
-          "carbohydrates": float (г),
-        },
-        {
-          "name": "название блюда 2",
-          "weight": float (г),
-          "calories": integer (ккал),
-          "protein": float (г),
-          "fat": float (г),
-          "carbohydrates": float (г),
-        }
-]
-        
-Не добавляй никакого текста кроме JSON.
-"""
-
-    def __init__(self, llm_client: Optional[BaseLLMClient] = None):
+    def content_for_openai(self, images: List[Union[str, bytes]]):
         """
-        Инициализация сервиса анализа еды.
+        Подготовка контента для OpenAI Vision с изображениями.
 
         Args:
-            llm_client: Мультимодальный LLM клиент.
-                       Если не указан, создается OpenAIVisionLLMClient.
-        """
-        self._client = llm_client or OpenAIVisionLLMClient()
+            prompt: Текстовый промпт (например, "Что это за еда? Рассчитай КБЖУ")
+            images: Список изображений (URL или байты)
 
-        logger.info(
-            "Инициализирован FoodAnalysisService с клиентом: %s",
-            self._client.__class__.__name__,
-        )
+        Returns:
+            content для OpenAI Vision
+        """
+        content = [{"type": "text", "text": self.prompt}]
+
+        for img in images:
+            if isinstance(img, str) and img.startswith(("http://", "https://")):
+                # URL изображения
+                content.append({"type": "image_url", "image_url": {"url": img}})
+            else:
+                # Байты изображения - кодируем в base64
+                if isinstance(img, bytes):
+                    base64_img = base64.b64encode(img).decode("utf-8")
+                else:
+                    # Предполагаем, что это уже base64 строка
+                    base64_img = img
+
+                content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_img}"},
+                    }
+                )
+        return content
+
+    async def ainvoke_with_images(
+            self,
+            images: List[Union[str, bytes]],
+            **kwargs
+    ) -> str:
+        """
+        Асинхронный вызов OpenAI Vision с изображениями.
+
+        Args:
+            prompt: Текстовый промпт (например, "Что это за еда? Рассчитай КБЖУ")
+            images: Список изображений (URL или байты)
+            **kwargs: Дополнительные параметры
+
+        Returns:
+            Ответ модели
+        """
+        # Подготавливаем содержимое сообщения
+
+        # Создаем сообщение
+        content = self.content_for_openai(images)
+        message = HumanMessage(content=content)
+
+        # Получаем модель с поддержкой vision
+
+        # Отправляем запрос
+        response = await self._client.ainvoke([message])
+
+        logger.info("Обработано изображений: %d", len(content)-1)
+        return response.content
 
     async def analyze_food_image(
-        self, image: Union[str, bytes], additional_context: Optional[str] = None
+            self, image: Union[str, bytes], additional_context: Optional[str] = None
     ) -> List[DishCreateIn]:
         """
         Анализирует одно изображение еды.
@@ -95,14 +107,12 @@ class FoodAnalysisService:
         Returns:
             List[DishCreateIn] с данными о КБЖУ
         """
-        prompt = self._build_analysis_prompt(additional_context)
 
         try:
-            response = await self._client.ainvoke_with_images(
-                prompt=prompt,
+
+            response = await self.ainvoke_with_images(
+                prompt=self.prompt,
                 images=[image],
-                temperature=0.2,  # Низкая температура для точности
-                max_tokens=1000,
             )
 
             # Извлекаем JSON из ответа
@@ -126,7 +136,7 @@ class FoodAnalysisService:
             raise
 
     async def analyze_multiple_food_images(
-        self, images: List[Union[str, bytes]], additional_context: Optional[str] = None
+            self, images: List[Union[str, bytes]], additional_context: Optional[str] = None
     ) -> List[DishCreateIn]:
         """
         Анализирует несколько изображений еды (например, несколько блюд).

@@ -8,7 +8,6 @@ from .deepseek_client import DeepSeekLLMClient
 from .openai_client import OpenAILLMClient
 from .factory import LLMClientFactory, LLMProvider
 from .client import llm_client, LLMClient
-from .service import LLMService, llm_service
 from .config import llm_settings
 from .food_analysis_service import food_analysis_service, FoodAnalysisService
 
@@ -25,8 +24,6 @@ __all__ = [
     "llm_client",
     "LLMClient",
     # Сервис
-    "llm_service",
-    "LLMService",
     # Настройки
     "llm_settings",
     "food_analysis_service",

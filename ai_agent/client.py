@@ -1,13 +1,11 @@
 """
-Модуль содержит синглтон-клиенты для работы с LLM через абстрактную фабрику.
+Модуль содержит клиент для работы с LLM.
 """
 
 from dataclasses import dataclass
 from logging import getLogger
-from typing import Any, List, Union
 
 from gigachat import GigaChat
-from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 
 from ai_agent.config import LLMProvider, llm_settings
@@ -18,7 +16,7 @@ logger = getLogger()
 @dataclass(frozen=True)
 class LLMClient:
     """
-    Синглтон-клиент для работы с LLM.
+    Клиент для работы с LLM.
     Переключение между провайдерами осуществляется через llm_settings.
     """
 
@@ -26,7 +24,7 @@ class LLMClient:
     settings = llm_settings
 
     @classmethod
-    def create_client(cls) -> ChatOpenAI:
+    def create_client(cls) -> ChatOpenAI | GigaChat:
         """
         Возвращает экземпляр клиента для текущего провайдера.
         """
@@ -42,8 +40,8 @@ class LLMClient:
 
         clients = {
             "gigachat": GigaChat(**total_provider_settings),
-            "openai": ChatOpenAI(**total_provider_settings),
-            "deepseek": ChatOpenAI(**total_provider_settings),
+            # "openai": ChatOpenAI(**total_provider_settings),
+            # "deepseek": ChatOpenAI(**total_provider_settings),
         }
         return clients[cls._current_provider]
 

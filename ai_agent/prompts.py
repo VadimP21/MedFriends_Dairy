@@ -43,3 +43,17 @@ food_analise_system_prompt = """
 
 Не добавляй никакого текста кроме JSON.
 """
+
+food_analise_system_prompt_mini = """Ты - эксперт по питанию. Проанализируй изображение еды и рассчитай КБЖУ.
+Верни результат строго в формате JSON массива:
+[
+        {
+          "name": "название блюда",
+          "weight": float (г),
+          "calories": integer (ккал),
+          "protein": float (г),
+          "fat": float (г),
+          "carbohydrates": float (г),
+        },
+        ]
+"""

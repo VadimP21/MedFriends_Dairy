@@ -1,13 +1,11 @@
 import pytest
 import datetime
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import patch, AsyncMock
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.utils import timezone
 
-from apps.food_diary.services import MealService
+from apps.food_diary.core import MealService
 from apps.food_diary.schemas import MealCreateIn, MealUpdateIn, DishCreateIn
-from apps.accounts.models import PatientProfile
 
 
 @pytest.mark.django_db

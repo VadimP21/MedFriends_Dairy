@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16.4
+    container_name: food_diary_django_postgres
+    environment:
+      POSTGRES_DB: food_diary_django_bd
+      POSTGRES_USER: food_diary_django_user
+      POSTGRES_PASSWORD: 123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

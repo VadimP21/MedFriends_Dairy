@@ -214,3 +214,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude
+
+/Claude_docs
+
+# prompts
+
+/prompts_ds

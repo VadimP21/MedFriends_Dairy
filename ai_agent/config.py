@@ -26,7 +26,7 @@ class LLMSettings(BaseSettings):
 
     # Выбор активного провайдера
     active_provider: LLMProvider = Field(
-        LLMProvider.DEEPSEEK,
+        LLMProvider.GIGACHAT,
         description="Активный LLM провайдер",
         validation_alias="ACTIVE_LLM_PROVIDER",
     )
@@ -133,7 +133,7 @@ class LLMSettings(BaseSettings):
 
         if provider == LLMProvider.DEEPSEEK and not self.deepseek_api_key:
             raise ValueError(
-                "DEEPSEEK_API_KEY is required when active_provider is GEMINI"
+                "DEEPSEEK_API_KEY is required when active_provider is DEEPSEEK"
             )
 
         return self

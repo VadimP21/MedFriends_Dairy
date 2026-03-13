@@ -1,4 +1,3 @@
-# apps/food/tests/factories.py
 import factory
 import uuid
 import datetime
